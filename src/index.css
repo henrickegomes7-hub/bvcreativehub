@@ -1,0 +1,73 @@
+@import "tailwindcss";
+
+@custom-variant dark (&:where(.dark, .dark *));
+
+@layer base {
+  :root {
+    /* Paleta Oficial Requisitada */
+    --bv-blue: #083181;
+    --bv-blue-hover: #062666;
+    --bv-orange: #c56a2d;
+    --bv-orange-hover: #ad5922;
+    --bv-green: #a0b900;
+    --bv-green-hover: #8ca200;
+    --bv-text-yellow: #e8dda5;
+
+    /* Tema Claro */
+    --bv-bg: #F5F6F8;
+    --bv-surface: #FFFFFF;
+    --bv-card: #FFFFFF;
+    --bv-card-subtle: #F8FAFC;
+    --bv-border: #E2E8F0;
+    --bv-border-subtle: #EDF2F7;
+    --bv-text: #0F172A;
+    --bv-text-muted: #64748B;
+    --bv-sidebar: #05163D;
+    --bv-sidebar-hover: #082463;
+  }
+
+  .dark {
+    /* Tema Escuro */
+    --bv-bg: #070D1E;
+    --bv-surface: #0E172E;
+    --bv-card: #131F3D;
+    --bv-card-subtle: #19274A;
+    --bv-border: #1F3057;
+    --bv-border-subtle: #172442;
+    --bv-text: #F8FAFC;
+    --bv-text-muted: #94A3B8;
+    --bv-sidebar: #040B1D;
+    --bv-sidebar-hover: #081636;
+  }
+
+  body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    background-color: var(--bv-bg);
+    color: var(--bv-text);
+    transition: background-color 0.25s ease, color 0.25s ease;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Plus Jakarta Sans', 'Inter', sans-serif;
+    letter-spacing: -0.02em;
+  }
+}
+
+/* Custom scrollbars */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: rgba(148, 163, 184, 0.4);
+  border-radius: 9999px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(148, 163, 184, 0.7);
+}

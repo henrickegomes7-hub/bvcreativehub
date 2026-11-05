@@ -1,0 +1,8 @@
+{
+  "name": "BV Creative Hub",
+  "description": "Plataforma de gestão e automação de demandas de Design Gráfico para o departamento criativo do Grupo BV.",
+  "requestFramePermissions": [],
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
+}
