@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
 import type { QueryResultRow } from 'pg';
-import { getPool, isDatabaseConfigured } from './database';
+import { getPool, isDatabaseConfigured } from './database.js';
 
 const SESSION_COOKIE = 'bv_hub_session';
 const SESSION_LIFETIME_MS = 7 * 24 * 60 * 60 * 1000;

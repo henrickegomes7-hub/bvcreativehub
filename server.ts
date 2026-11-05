@@ -3,7 +3,7 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { GoogleGenAI, Type } from '@google/genai';
-import { apiRouter, requireUser } from './backend/routes';
+import { apiRouter, requireUser } from './backend/routes.js';
 
 dotenv.config();
 
