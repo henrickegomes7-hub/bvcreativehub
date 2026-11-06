@@ -269,10 +269,13 @@ apiRouter.post('/auth/password-reset/request', authLimiter, async (req, res) => 
     res.status(503).json({ error: 'O banco de dados ainda não foi configurado.' });
     return;
   }
-  const resendApiKey = process.env.RESEND_API_KEY;
-  const emailFrom = process.env.EMAIL_FROM;
-  if (!resendApiKey || !emailFrom) {
-    res.status(503).json({ error: 'O envio de e-mails não está configurado. Configure RESEND_API_KEY e EMAIL_FROM no servidor.' });
+  const gmailClientId = process.env.GMAIL_CLIENT_ID;
+  const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
+  const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
+  const gmailSenderEmail = process.env.GMAIL_SENDER_EMAIL;
+  if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken
+      || !gmailSenderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmailSenderEmail)) {
+    res.status(503).json({ error: 'O envio de e-mails não está configurado. Configure as quatro variáveis GMAIL_* no servidor.' });
     return;
   }
 
@@ -303,18 +306,49 @@ apiRouter.post('/auth/password-reset/request', authLimiter, async (req, res) => 
         [user.id, pendingTokenHash, salt.toString('hex'), codeHash.toString('hex'), expiresAt],
       );
 
-      const emailResponse = await fetch('https://api.resend.com/emails', {
+      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+          client_id: gmailClientId,
+          client_secret: gmailClientSecret,
+          refresh_token: gmailRefreshToken,
+          grant_type: 'refresh_token',
+        }),
+      });
+
+      const tokenPayload: { access_token?: unknown } = await tokenResponse.json();
+      if (!tokenResponse.ok || typeof tokenPayload.access_token !== 'string') {
+        await getPool().query(
+          'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
+          [user.id, pendingTokenHash],
+        );
+        console.error(`Falha ao obter token da Gmail API (HTTP ${tokenResponse.status}).`);
+        res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
+        return;
+      }
+
+      const encodedText = Buffer.from(
+        `Seu código para redefinir a senha é ${code}. Ele expira em 15 minutos e só pode ser usado uma vez. Se você não solicitou esta alteração, ignore este e-mail.`,
+        'utf8',
+      ).toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? '';
+      const message = [
+        `From: ${gmailSenderEmail}`,
+        `To: ${user.email}`,
+        'Subject: Código para redefinir sua senha - BV Creative Hub',
+        'MIME-Version: 1.0',
+        'Content-Type: text/plain; charset="UTF-8"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        encodedText,
+      ].join('\r\n');
+      const emailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${resendApiKey}`,
+          Authorization: `Bearer ${tokenPayload.access_token}`,
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          from: emailFrom,
-          to: [user.email],
-          subject: 'Código para redefinir sua senha - BV Creative Hub',
-          text: `Seu código para redefinir a senha é ${code}. Ele expira em 15 minutos e só pode ser usado uma vez. Se você não solicitou esta alteração, ignore este e-mail.`,
-        }),
+        body: JSON.stringify({ raw: Buffer.from(message, 'utf8').toString('base64url') }),
       });
 
       if (!emailResponse.ok) {
@@ -322,7 +356,7 @@ apiRouter.post('/auth/password-reset/request', authLimiter, async (req, res) => 
           'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
           [user.id, pendingTokenHash],
         );
-        console.error(`Falha ao enviar e-mail de redefinição via Resend (HTTP ${emailResponse.status}).`);
+        console.error(`Falha ao enviar e-mail de redefinição via Gmail API (HTTP ${emailResponse.status}).`);
         res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
         return;
       }
