@@ -160,21 +160,32 @@ export const AuthView: React.FC<AuthViewProps> = ({
             }}
           >
             {index % 2 === 0 ? (
-              <img
-                src="/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png"
-                alt=""
-                className={`block ${theme === 'light' ? '[filter:brightness(0)_saturate(100%)_invert(14%)_sepia(47%)_saturate(2384%)_hue-rotate(198deg)_brightness(91%)_contrast(103%)]' : '[filter:brightness(0)_invert(1)]'}`}
+              <span
+                className="block"
                 style={{
                   width: mark.size,
                   height: mark.size,
-                  objectFit: 'contain',
-                  opacity: theme === 'light' ? 0.1 : 0.2,
+                  backgroundColor: theme === 'light' ? '#083181' : '#FFFFFF',
+                  opacity: theme === 'light' ? 0.12 : 0.2,
+                  maskImage: 'url("/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png")',
+                  maskPosition: 'center',
+                  maskRepeat: 'no-repeat',
+                  maskSize: 'contain',
+                  WebkitMaskImage: 'url("/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png")',
+                  WebkitMaskPosition: 'center',
+                  WebkitMaskRepeat: 'no-repeat',
+                  WebkitMaskSize: 'contain',
                 }}
               />
             ) : (
               <Gift
                 strokeWidth={1.6}
-                style={{ width: mark.size, height: mark.size }}
+                style={{
+                  width: mark.size,
+                  height: mark.size,
+                  color: theme === 'light' ? '#083181' : '#FFFFFF',
+                  opacity: theme === 'light' ? 0.12 : 0.2,
+                }}
               />
             )}
           </span>
