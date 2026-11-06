@@ -17,9 +17,6 @@ interface AuthViewProps {
   onCompletePasswordReset: (resetToken: string, password: string) => Promise<void>;
 }
 
-const fieldClassName = 'mt-1 w-full rounded-lg border border-slate-300 dark:border-slate-700 bg-white dark:bg-[#131F3D] px-3 py-2.5 text-sm';
-const labelClassName = 'block text-sm font-medium text-slate-700 dark:text-slate-200';
-
 export const AuthView: React.FC<AuthViewProps> = ({
   configured,
   adminSetupRequired,
@@ -115,26 +112,42 @@ export const AuthView: React.FC<AuthViewProps> = ({
           : mode === 'verify-code'
             ? 'Digite o código de seis dígitos enviado para seu e-mail.'
             : 'Escolha uma senha nova para sua conta.';
+  const fieldClassName = `mt-1 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${
+    theme === 'dark'
+      ? 'border-white/50 bg-white text-[#083181] focus:border-white focus:ring-white/30'
+      : 'border-slate-300 bg-white text-slate-900 focus:border-[#083181] focus:ring-[#083181]/20'
+  }`;
+  const labelClassName = `block text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-700'}`;
 
   return (
-    <main className="min-h-screen flex items-center justify-center bg-[#F5F6F8] dark:bg-[#070D1E] px-4 py-10">
-      <section className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#0E172E] border border-slate-200 dark:border-[#1F3057] shadow-xl p-8">
+    <main className={`min-h-screen flex items-center justify-center px-4 py-10 transition-colors duration-200 ${theme === 'dark' ? 'bg-white' : 'bg-[#083181]'}`}>
+      <section className={`relative w-full max-w-md rounded-2xl border shadow-xl p-8 transition-colors duration-200 ${
+        theme === 'dark'
+          ? 'border-[#3159A4] bg-[#083181] text-white'
+          : 'border-slate-200 bg-white text-slate-900'
+      }`}>
         <button
           type="button"
           onClick={onToggleTheme}
-          className="absolute right-5 top-5 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          className={`absolute right-5 top-5 rounded-lg p-2 transition-colors ${
+            theme === 'dark'
+              ? 'text-white hover:bg-white/15 hover:text-white'
+              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+          }`}
           aria-label="Alternar tema claro e escuro"
           title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
         >
           {theme === 'dark'
-            ? <Sun className="h-4 w-4 text-[#e8dda5]" />
+            ? <Sun className="h-4 w-4 text-white" />
             : <Moon className="h-4 w-4 text-[#083181]" />}
         </button>
-        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#083181] text-white">
+        <div className={`mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${
+          theme === 'dark' ? 'bg-white text-[#083181]' : 'bg-[#083181] text-white'
+        }`}>
           {isRecovery ? <KeyRound /> : mode === 'login' ? <LogIn /> : mode === 'admin' ? <LockKeyhole /> : <UserPlus />}
         </div>
-        <h1 className="text-center text-2xl font-bold text-slate-900 dark:text-white">{title}</h1>
-        <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        <h1 className={`text-center text-2xl font-bold ${theme === 'dark' ? 'text-white' : 'text-slate-900'}`}>{title}</h1>
+        <p className={`mt-2 text-center text-sm ${theme === 'dark' ? 'text-white/75' : 'text-slate-500'}`}>{description}</p>
 
         {!configured && (
           <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
@@ -207,7 +220,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 </label>
               )}
 
-              <button disabled={isSubmitting} className="w-full rounded-lg bg-[#083181] px-4 py-3 text-sm font-semibold text-white hover:bg-[#062666] disabled:opacity-60">
+              <button disabled={isSubmitting} className={`w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60 ${
+                theme === 'dark'
+                  ? 'bg-white text-[#083181] hover:bg-slate-100'
+                  : 'bg-[#083181] text-white hover:bg-[#062666]'
+              }`}>
                 {isSubmitting
                   ? 'Aguarde...'
                   : mode === 'admin'
@@ -225,27 +242,27 @@ export const AuthView: React.FC<AuthViewProps> = ({
             </form>
 
             {!adminSetupRequired && (
-              <div className="mt-5 space-y-3 text-center text-sm text-slate-600 dark:text-slate-400">
+              <div className={`mt-5 space-y-3 text-center text-sm ${theme === 'dark' ? 'text-white/75' : 'text-slate-600'}`}>
                 {mode === 'login' && (
                   <>
-                    <button className="block w-full font-semibold text-[#083181] dark:text-blue-300 hover:underline" onClick={() => changeMode('forgot')}>
+                    <button className={`block w-full font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('forgot')}>
                       Esqueceu a senha?
                     </button>
                     <span>
                       Ainda não tem uma conta?{' '}
-                      <button className="font-semibold text-[#083181] dark:text-blue-300 hover:underline" onClick={() => changeMode('register')}>Cadastre-se</button>
+                      <button className={`font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('register')}>Cadastre-se</button>
                     </span>
                   </>
                 )}
                 {mode === 'register' && (
                   <span>
                     Já tem uma conta?{' '}
-                    <button className="font-semibold text-[#083181] dark:text-blue-300 hover:underline" onClick={() => changeMode('login')}>Fazer login</button>
+                    <button className={`font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('login')}>Fazer login</button>
                   </span>
                 )}
                 {isRecovery && (
                   <button
-                    className="inline-flex items-center gap-1 font-semibold text-[#083181] dark:text-blue-300 hover:underline"
+                    className={`inline-flex items-center gap-1 font-semibold hover:underline ${theme === 'dark' ? 'text-white' : 'text-[#083181]'}`}
                     onClick={() => changeMode(mode === 'verify-code' ? 'forgot' : 'login')}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -256,7 +273,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
             )}
           </>
         )}
-        <nav aria-label="Informações legais" className="mt-6 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+        <nav aria-label="Informações legais" className={`mt-6 flex justify-center gap-4 text-xs ${theme === 'dark' ? 'text-white/70' : 'text-slate-500'}`}>
           <a className="hover:underline" href="/politica-de-privacidade">Política de Privacidade</a>
           <a className="hover:underline" href="/termos-de-servico">Termos de Serviço</a>
         </nav>
