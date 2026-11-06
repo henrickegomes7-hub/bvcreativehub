@@ -1,7 +1,34 @@
 import React, { useState } from 'react';
-import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Moon, Sun, UserPlus } from 'lucide-react';
+import { ArrowLeft, Gift, KeyRound, LockKeyhole, LogIn, Moon, Sun, UserPlus } from 'lucide-react';
 
 type AuthMode = 'login' | 'register' | 'admin' | 'forgot' | 'verify-code' | 'reset-password';
+
+const backgroundMarks = [
+  { left: '3%', top: '7%', rotate: '-18deg', size: 44 },
+  { left: '17%', top: '11%', rotate: '14deg', size: 36 },
+  { left: '32%', top: '5%', rotate: '-12deg', size: 48 },
+  { left: '49%', top: '12%', rotate: '18deg', size: 38 },
+  { left: '66%', top: '6%', rotate: '-15deg', size: 44 },
+  { left: '83%', top: '13%', rotate: '12deg', size: 40 },
+  { left: '94%', top: '4%', rotate: '-20deg', size: 34 },
+  { left: '9%', top: '31%', rotate: '12deg', size: 38 },
+  { left: '24%', top: '37%', rotate: '-16deg', size: 46 },
+  { left: '40%', top: '29%', rotate: '20deg', size: 36 },
+  { left: '58%', top: '36%', rotate: '-10deg', size: 44 },
+  { left: '75%', top: '29%', rotate: '16deg', size: 38 },
+  { left: '91%', top: '39%', rotate: '-14deg', size: 46 },
+  { left: '2%', top: '59%', rotate: '17deg', size: 42 },
+  { left: '17%', top: '68%', rotate: '-11deg', size: 36 },
+  { left: '34%', top: '62%', rotate: '15deg', size: 46 },
+  { left: '66%', top: '64%', rotate: '-18deg', size: 38 },
+  { left: '82%', top: '60%', rotate: '12deg', size: 46 },
+  { left: '96%', top: '69%', rotate: '-12deg', size: 36 },
+  { left: '8%', top: '87%', rotate: '-14deg', size: 38 },
+  { left: '27%', top: '91%', rotate: '16deg', size: 44 },
+  { left: '48%', top: '84%', rotate: '-10deg', size: 36 },
+  { left: '72%', top: '90%', rotate: '14deg', size: 44 },
+  { left: '89%', top: '85%', rotate: '-17deg', size: 38 },
+];
 
 interface AuthViewProps {
   configured: boolean;
@@ -120,8 +147,40 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const labelClassName = `block text-sm font-medium ${theme === 'dark' ? 'text-white' : 'text-slate-700'}`;
 
   return (
-    <main className={`min-h-screen flex items-center justify-center px-4 py-10 transition-colors duration-200 ${theme === 'dark' ? 'bg-white' : 'bg-[#083181]'}`}>
-      <section className={`relative w-full max-w-md rounded-2xl border shadow-xl p-8 transition-colors duration-200 ${
+    <main className={`relative isolate min-h-screen flex items-center justify-center overflow-hidden px-4 py-10 transition-colors duration-200 ${theme === 'dark' ? 'bg-white' : 'bg-[#083181]'}`}>
+      <div aria-hidden="true" className={`pointer-events-none absolute inset-0 select-none overflow-hidden ${theme === 'dark' ? 'text-[#083181]/10' : 'text-white/20'}`}>
+        {backgroundMarks.map((mark, index) => (
+          <span
+            key={`${mark.left}-${mark.top}`}
+            className="absolute"
+            style={{
+              left: mark.left,
+              top: mark.top,
+              transform: `rotate(${mark.rotate})`,
+            }}
+          >
+            {index % 2 === 0 ? (
+              <img
+                src="/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png"
+                alt=""
+                className={`block ${theme === 'dark' ? '[filter:brightness(0)_saturate(100%)_invert(14%)_sepia(47%)_saturate(2384%)_hue-rotate(198deg)_brightness(91%)_contrast(103%)]' : '[filter:brightness(0)_invert(1)]'}`}
+                style={{
+                  width: mark.size,
+                  height: mark.size,
+                  objectFit: 'contain',
+                  opacity: theme === 'dark' ? 0.1 : 0.2,
+                }}
+              />
+            ) : (
+              <Gift
+                strokeWidth={1.6}
+                style={{ width: mark.size, height: mark.size }}
+              />
+            )}
+          </span>
+        ))}
+      </div>
+      <section className={`relative z-10 w-full max-w-md rounded-2xl border shadow-xl p-8 transition-colors duration-200 ${
         theme === 'dark'
           ? 'border-[#3159A4] bg-[#083181] text-white'
           : 'border-slate-200 bg-white text-slate-900'
