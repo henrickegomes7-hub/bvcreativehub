@@ -42,6 +42,21 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify({ name, email, password, bootstrapToken }),
     }),
+  requestPasswordReset: (email: string) =>
+    request<{ message: string }>('/api/auth/password-reset/request', {
+      method: 'POST',
+      body: JSON.stringify({ email }),
+    }),
+  verifyPasswordResetCode: (email: string, code: string) =>
+    request<{ resetToken: string }>('/api/auth/password-reset/verify', {
+      method: 'POST',
+      body: JSON.stringify({ email, code }),
+    }),
+  completePasswordReset: (resetToken: string, password: string) =>
+    request<{ message: string }>('/api/auth/password-reset/complete', {
+      method: 'POST',
+      body: JSON.stringify({ resetToken, password }),
+    }),
   logout: () => request<void>('/api/auth/logout', { method: 'POST' }),
   getRequests: () => request<{ requests: CreativeRequest[] }>('/api/requests'),
   getDepartments: () => request<{ departments: Department[] }>('/api/departments'),

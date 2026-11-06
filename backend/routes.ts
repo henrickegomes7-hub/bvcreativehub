@@ -1,4 +1,4 @@
-import { randomBytes, randomUUID, scrypt as scryptCallback, createHash, timingSafeEqual } from 'node:crypto';
+import { randomBytes, randomInt, randomUUID, scrypt as scryptCallback, createHash, timingSafeEqual } from 'node:crypto';
 import type { NextFunction, Request, Response } from 'express';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
@@ -256,6 +256,185 @@ apiRouter.post('/auth/login', authLimiter, async (req, res) => {
   } catch (error) {
     console.error('Erro ao autenticar conta:', error);
     res.status(503).json({ error: 'Não foi possível acessar o serviço de autenticação.' });
+  }
+});
+
+apiRouter.post('/auth/password-reset/request', authLimiter, async (req, res) => {
+  const { email } = req.body ?? {};
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+    res.status(400).json({ error: 'Informe um e-mail válido.' });
+    return;
+  }
+  if (!isDatabaseConfigured()) {
+    res.status(503).json({ error: 'O banco de dados ainda não foi configurado.' });
+    return;
+  }
+  const resendApiKey = process.env.RESEND_API_KEY;
+  const emailFrom = process.env.EMAIL_FROM;
+  if (!resendApiKey || !emailFrom) {
+    res.status(503).json({ error: 'O envio de e-mails não está configurado. Configure RESEND_API_KEY e EMAIL_FROM no servidor.' });
+    return;
+  }
+
+  try {
+    const normalizedEmail = email.trim().toLowerCase();
+    const result = await getPool().query<{ id: string; email: string }>(
+      'SELECT id, email FROM app_users WHERE email = $1',
+      [normalizedEmail],
+    );
+    const user = result.rows[0];
+    if (user) {
+      const code = randomInt(100_000, 1_000_000).toString();
+      const salt = randomBytes(16);
+      const codeHash = await deriveKey(code, salt, 64);
+      const pendingTokenHash = sessionHash(randomBytes(32).toString('base64url'));
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+      await getPool().query(
+        `INSERT INTO app_password_resets (user_id, token_hash, code_salt, code_hash, expires_at)
+         VALUES ($1, $2, $3, $4, $5)
+         ON CONFLICT (user_id) DO UPDATE SET
+           token_hash = EXCLUDED.token_hash,
+           code_salt = EXCLUDED.code_salt,
+           code_hash = EXCLUDED.code_hash,
+           attempts = 0,
+           expires_at = EXCLUDED.expires_at,
+           code_verified_at = NULL,
+           created_at = NOW()`,
+        [user.id, pendingTokenHash, salt.toString('hex'), codeHash.toString('hex'), expiresAt],
+      );
+
+      const emailResponse = await fetch('https://api.resend.com/emails', {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${resendApiKey}`,
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          from: emailFrom,
+          to: [user.email],
+          subject: 'Código para redefinir sua senha - BV Creative Hub',
+          text: `Seu código para redefinir a senha é ${code}. Ele expira em 15 minutos e só pode ser usado uma vez. Se você não solicitou esta alteração, ignore este e-mail.`,
+        }),
+      });
+
+      if (!emailResponse.ok) {
+        await getPool().query(
+          'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
+          [user.id, pendingTokenHash],
+        );
+        console.error(`Falha ao enviar e-mail de redefinição via Resend (HTTP ${emailResponse.status}).`);
+        res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
+        return;
+      }
+    }
+
+    res.json({ message: 'Se o e-mail estiver cadastrado, enviaremos um código de redefinição em instantes.' });
+  } catch (error) {
+    console.error('Erro ao solicitar redefinição de senha:', error);
+    res.status(503).json({ error: 'Não foi possível solicitar a redefinição de senha.' });
+  }
+});
+
+apiRouter.post('/auth/password-reset/verify', authLimiter, async (req, res) => {
+  const { email, code } = req.body ?? {};
+  if (typeof email !== 'string' || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())
+      || typeof code !== 'string' || !/^\d{6}$/.test(code)) {
+    res.status(400).json({ error: 'Informe o e-mail e o código de seis dígitos.' });
+    return;
+  }
+
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query<{
+      user_id: string;
+      code_salt: string;
+      code_hash: string;
+    }>(
+      `SELECT r.user_id, r.code_salt, r.code_hash
+       FROM app_password_resets r
+       JOIN app_users u ON u.id = r.user_id
+       WHERE u.email = $1
+         AND r.expires_at > NOW()
+         AND r.code_verified_at IS NULL
+         AND r.attempts < 5
+       FOR UPDATE OF r`,
+      [email.trim().toLowerCase()],
+    );
+    const reset = result.rows[0];
+    if (!reset) {
+      await client.query('COMMIT');
+      res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo código.' });
+      return;
+    }
+
+    const expected = Buffer.from(reset.code_hash, 'hex');
+    const actual = await deriveKey(code, Buffer.from(reset.code_salt, 'hex'), expected.length);
+    if (expected.length !== actual.length || !timingSafeEqual(expected, actual)) {
+      await client.query(
+        'UPDATE app_password_resets SET attempts = attempts + 1 WHERE user_id = $1',
+        [reset.user_id],
+      );
+      await client.query('COMMIT');
+      res.status(400).json({ error: 'Código inválido ou expirado. Solicite um novo código.' });
+      return;
+    }
+
+    const resetToken = randomBytes(32).toString('base64url');
+    await client.query(
+      'UPDATE app_password_resets SET token_hash = $2, code_verified_at = NOW() WHERE user_id = $1',
+      [reset.user_id, sessionHash(resetToken)],
+    );
+    await client.query('COMMIT');
+    res.json({ resetToken });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao validar código de redefinição:', error);
+    res.status(503).json({ error: 'Não foi possível validar o código.' });
+  } finally {
+    client.release();
+  }
+});
+
+apiRouter.post('/auth/password-reset/complete', authLimiter, async (req, res) => {
+  const { resetToken, password } = req.body ?? {};
+  if (typeof resetToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(resetToken)
+      || typeof password !== 'string' || password.length < 12 || password.length > 128) {
+    res.status(400).json({ error: 'Use um código válido e uma senha de 12 a 128 caracteres.' });
+    return;
+  }
+
+  const client = await getPool().connect();
+  try {
+    await client.query('BEGIN');
+    const result = await client.query<{ user_id: string }>(
+      `SELECT user_id
+       FROM app_password_resets
+       WHERE token_hash = $1 AND expires_at > NOW() AND code_verified_at IS NOT NULL
+       FOR UPDATE`,
+      [sessionHash(resetToken)],
+    );
+    const reset = result.rows[0];
+    if (!reset) {
+      await client.query('COMMIT');
+      res.status(400).json({ error: 'A solicitação expirou ou já foi utilizada. Solicite um novo código.' });
+      return;
+    }
+
+    await client.query('UPDATE app_users SET password_hash = $2 WHERE id = $1', [
+      reset.user_id,
+      await hashPassword(password),
+    ]);
+    await client.query('DELETE FROM app_sessions WHERE user_id = $1', [reset.user_id]);
+    await client.query('DELETE FROM app_password_resets WHERE user_id = $1', [reset.user_id]);
+    await client.query('COMMIT');
+    res.json({ message: 'Senha redefinida com sucesso.' });
+  } catch (error) {
+    await client.query('ROLLBACK');
+    console.error('Erro ao redefinir senha:', error);
+    res.status(503).json({ error: 'Não foi possível redefinir a senha.' });
+  } finally {
+    client.release();
   }
 });
 

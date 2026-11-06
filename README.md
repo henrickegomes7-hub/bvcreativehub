@@ -122,9 +122,17 @@ cp .env.example .env
 DATABASE_URL=postgresql://...
 ADMIN_EMAIL=henrickework@gmail.com
 ADMIN_BOOTSTRAP_TOKEN=gere-um-segredo-aleatorio-com-32-caracteres-ou-mais
+GMAIL_CLIENT_ID=seu-client-id.apps.googleusercontent.com
+GMAIL_CLIENT_SECRET=seu-client-secret
+GMAIL_REFRESH_TOKEN=seu-refresh-token
+GMAIL_SENDER_EMAIL=seuemail@gmail.com
 ```
 
 `ADMIN_BOOTSTRAP_TOKEN` deve ser aleatório e mantido em segredo. Ele só é usado para criar a conta administrativa inicial. Depois de criar a conta, remova essa variável do ambiente de hospedagem.
+
+Para habilitar **Esqueceu a senha?**, configure a API Gmail com OAuth 2.0. Ative a Gmail API em um projeto do [Google Cloud Console](https://console.cloud.google.com/), configure o consentimento OAuth e crie credenciais OAuth do tipo **Web application**. Adicione `https://developers.google.com/oauthplayground` como URI de redirecionamento autorizado. No [OAuth Playground](https://developers.google.com/oauthplayground/), habilite **Use your own OAuth credentials**, informe o Client ID e o Client Secret, autorize o escopo `https://www.googleapis.com/auth/gmail.send` com a conta remetente e troque o código por tokens. Copie o refresh token para `GMAIL_REFRESH_TOKEN` e use o mesmo e-mail autorizado em `GMAIL_SENDER_EMAIL`.
+
+Guarde todas essas credenciais exclusivamente no servidor; na Vercel, cadastre-as em **Project Settings > Environment Variables** e faça um novo deploy. Em um app OAuth externo no modo **Testing**, o Google pode expirar refresh tokens após sete dias; para uso contínuo, será necessário configurar o consentimento e a publicação do app conforme as exigências do Google. O código de redefinição expira em 15 minutos e permite no máximo cinco tentativas.
 
 ### 5. Criar as tabelas
 
@@ -165,7 +173,7 @@ Abra o seu navegador e acesse: **`http://localhost:3000`**
 
 ### 8. Publicar na Vercel
 
-Importe o projeto para a Vercel, configure `DATABASE_URL`, `ADMIN_EMAIL` e `ADMIN_BOOTSTRAP_TOKEN`, aplique a migração no banco e faça o deploy. O arquivo `vercel.json` encaminha a API ao backend Node e publica o frontend. O PostgreSQL precisa aceitar conexões do backend Vercel. `ADMIN_BOOTSTRAP_TOKEN` precisa ter pelo menos 32 caracteres aleatórios; remova-o após criar a conta administrativa.
+Importe o projeto para a Vercel, configure `DATABASE_URL`, `ADMIN_EMAIL`, `ADMIN_BOOTSTRAP_TOKEN` e as quatro variáveis OAuth do Gmail, aplique a migração no banco e faça o deploy. O arquivo `vercel.json` encaminha a API ao backend Node e publica o frontend. O PostgreSQL precisa aceitar conexões do backend Vercel. `ADMIN_BOOTSTRAP_TOKEN` precisa ter pelo menos 32 caracteres aleatórios; remova-o após criar a conta administrativa.
 
 ### 9. Executar os Testes Unitários
 

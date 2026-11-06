@@ -161,6 +161,19 @@ export default function App() {
     await handleAuth(user);
   };
 
+  const handleRequestPasswordReset = async (email: string) => {
+    await apiClient.requestPasswordReset(email);
+  };
+
+  const handleVerifyPasswordResetCode = async (email: string, code: string) => {
+    const { resetToken } = await apiClient.verifyPasswordResetCode(email, code);
+    return resetToken;
+  };
+
+  const handleCompletePasswordReset = async (resetToken: string, password: string) => {
+    await apiClient.completePasswordReset(resetToken, password);
+  };
+
   const handleLogout = async () => {
     try {
       await apiClient.logout();
@@ -260,6 +273,9 @@ export default function App() {
         onLogin={handleLogin}
         onRegister={handleRegister}
         onBootstrapAdmin={handleBootstrapAdmin}
+        onRequestPasswordReset={handleRequestPasswordReset}
+        onVerifyPasswordResetCode={handleVerifyPasswordResetCode}
+        onCompletePasswordReset={handleCompletePasswordReset}
       />
     );
   }

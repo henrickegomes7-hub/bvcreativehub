@@ -16,6 +16,19 @@ CREATE TABLE IF NOT EXISTS app_sessions (
 
 CREATE INDEX IF NOT EXISTS app_sessions_expiry_idx ON app_sessions(expires_at);
 
+CREATE TABLE IF NOT EXISTS app_password_resets (
+  user_id UUID PRIMARY KEY REFERENCES app_users(id) ON DELETE CASCADE,
+  token_hash CHAR(64) NOT NULL UNIQUE,
+  code_salt CHAR(32) NOT NULL,
+  code_hash CHAR(128) NOT NULL,
+  attempts INTEGER NOT NULL DEFAULT 0 CHECK (attempts BETWEEN 0 AND 5),
+  expires_at TIMESTAMPTZ NOT NULL,
+  code_verified_at TIMESTAMPTZ,
+  created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+CREATE INDEX IF NOT EXISTS app_password_resets_expiry_idx ON app_password_resets(expires_at);
+
 CREATE SEQUENCE IF NOT EXISTS creative_request_code_seq START 1;
 
 CREATE TABLE IF NOT EXISTS creative_requests (
