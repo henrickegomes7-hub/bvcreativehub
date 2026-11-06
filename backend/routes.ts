@@ -317,13 +317,21 @@ apiRouter.post('/auth/password-reset/request', authLimiter, async (req, res) => 
         }),
       });
 
-      const tokenPayload: { access_token?: unknown } = await tokenResponse.json();
+      const tokenPayload: {
+        access_token?: unknown;
+        error?: unknown;
+        error_description?: unknown;
+      } = await tokenResponse.json();
       if (!tokenResponse.ok || typeof tokenPayload.access_token !== 'string') {
         await getPool().query(
           'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
           [user.id, pendingTokenHash],
         );
-        console.error(`Falha ao obter token da Gmail API (HTTP ${tokenResponse.status}).`);
+        const oauthError = typeof tokenPayload.error === 'string' ? tokenPayload.error : 'desconhecido';
+        const oauthErrorDescription = typeof tokenPayload.error_description === 'string'
+          ? tokenPayload.error_description.replace(/[\r\n]/g, ' ').slice(0, 300)
+          : 'sem descrição';
+        console.error(`Falha ao obter token da Gmail API (HTTP ${tokenResponse.status}; ${oauthError}: ${oauthErrorDescription}).`);
         res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
         return;
       }
