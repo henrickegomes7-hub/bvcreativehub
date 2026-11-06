@@ -115,11 +115,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#F5F6F8] dark:bg-[#070D1E] px-4 py-10">
       <section className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0E172E] border border-slate-200 dark:border-[#1F3057] shadow-xl p-8">
-        <div className="w-12 h-12 rounded-xl bg-[#083181] text-white flex items-center justify-center mb-5">
+        <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#083181] text-white">
           {isRecovery ? <KeyRound /> : mode === 'login' ? <LogIn /> : mode === 'admin' ? <LockKeyhole /> : <UserPlus />}
         </div>
-        <h1 className="text-2xl font-bold text-slate-900 dark:text-white">{title}</h1>
-        <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">{description}</p>
+        <h1 className="text-center text-2xl font-bold text-slate-900 dark:text-white">{title}</h1>
+        <p className="mt-2 text-center text-sm text-slate-500 dark:text-slate-400">{description}</p>
 
         {!configured && (
           <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
