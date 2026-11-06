@@ -51,7 +51,6 @@ bv-creative-hub/
 │   │   ├── sla.test.ts          # Testes unitários de SLA
 │   │   ├── workflow.ts          # Máquina de estados e validações de esteira
 │   │   ├── workflow.test.ts     # Testes unitários do workflow
-│   │   └── exportZip.ts         # Exportador do código-fonte em ZIP
 │   ├── App.tsx                  # Orquestrador da aplicação
 │   ├── index.css                # Configurações de tema, fontes e variáveis de cor
 │   └── main.tsx                 # Ponto de entrada React
@@ -91,7 +90,7 @@ Siga o passo a passo abaixo para rodar a aplicação em seu computador:
 
 ### 2. Abrir o Projeto no VS Code
 
-1. Baixe o código do projeto (você pode clicar no botão **"Código Fonte (ZIP)"** no topo da própria aplicação para baixar tudo compactado, ou clonar a pasta).
+1. Obtenha o código-fonte do repositório GitHub e extraia ou clone a pasta do projeto.
 2. Extraia os arquivos em uma pasta de sua preferência (ex: `C:\Projetos\bv-creative-hub` ou `~/Projetos/bv-creative-hub`).
 3. Abra o VS Code e acesse o menu **File > Open Folder...** (ou `code bv-creative-hub` no terminal).
 

@@ -3,7 +3,6 @@ import {
   Bell, 
   Search, 
   Plus, 
-  Download, 
   CheckCheck,
   AlertTriangle,
   Clock,
@@ -14,7 +13,6 @@ import {
 } from 'lucide-react';
 import { UserProfile, NotificationItem } from '../../types';
 import { Button } from '../ui/Button';
-import { downloadProjectZip } from '../../utils/exportZip';
 
 interface HeaderProps {
   currentUser: UserProfile;
@@ -48,20 +46,8 @@ export const Header: React.FC<HeaderProps> = ({
   onToggleTheme,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
-  const [isExporting, setIsExporting] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.read).length;
-
-  const handleExportZip = async () => {
-    setIsExporting(true);
-    try {
-      await downloadProjectZip();
-    } catch (e) {
-      console.error(e);
-    } finally {
-      setIsExporting(false);
-    }
-  };
 
   const getRoleBadge = (role: UserProfile['role']) => {
     switch (role) {
@@ -109,19 +95,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Moon className="w-4 h-4 text-[#083181]" />
           )}
         </button>
-
-        {/* Export Code ZIP Button */}
-        {isAdmin && <Button
-          variant="outline"
-          size="sm"
-          onClick={handleExportZip}
-          loading={isExporting}
-          icon={<Download className="w-3.5 h-3.5 text-[#083181] dark:text-[#a0b900]" />}
-          title="Baixar projeto completo em ZIP pronto para o VS Code"
-          className="hidden sm:inline-flex border-slate-200 dark:border-slate-700 hover:border-[#083181] dark:hover:border-blue-400 text-slate-700 dark:text-slate-200 hover:text-[#083181]"
-        >
-          Código Fonte (ZIP)
-        </Button>}
 
         {/* Nova Solicitação Button */}
         <Button
