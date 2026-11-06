@@ -241,6 +241,10 @@ export const AuthView: React.FC<AuthViewProps> = ({
             )}
           </>
         )}
+        <nav aria-label="Informações legais" className="mt-6 flex justify-center gap-4 text-xs text-slate-500 dark:text-slate-400">
+          <a className="hover:underline" href="/politica-de-privacidade">Política de Privacidade</a>
+          <a className="hover:underline" href="/termos-de-servico">Termos de Serviço</a>
+        </nav>
       </section>
     </main>
   );

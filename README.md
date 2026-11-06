@@ -134,6 +134,8 @@ Para habilitar **Esqueceu a senha?**, configure a API Gmail com OAuth 2.0. Ative
 
 Guarde todas essas credenciais exclusivamente no servidor; na Vercel, cadastre-as em **Project Settings > Environment Variables** e faça um novo deploy. Em um app OAuth externo no modo **Testing**, o Google pode expirar refresh tokens após sete dias; para uso contínuo, será necessário configurar o consentimento e a publicação do app conforme as exigências do Google. O código de redefinição expira em 15 minutos e permite no máximo cinco tentativas.
 
+As páginas públicas de [Política de Privacidade](/politica-de-privacidade) e [Termos de Serviço](/termos-de-servico) são disponibilizadas nesses endereços após o deploy. Revise as informações de responsável e contato antes de utilizá-las em cadastros de terceiros.
+
 ### 5. Criar as tabelas
 
 Configure `DATABASE_URL` no ambiente ou no `.env` e execute a migração:

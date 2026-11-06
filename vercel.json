@@ -3,6 +3,8 @@
   "outputDirectory": "dist",
   "rewrites": [
     { "source": "/api/(.*)", "destination": "/api/index.ts" },
+    { "source": "/politica-de-privacidade", "destination": "/politica-de-privacidade.html" },
+    { "source": "/termos-de-servico", "destination": "/termos-de-servico.html" },
     { "source": "/(.*)", "destination": "/index.html" }
   ]
 }
