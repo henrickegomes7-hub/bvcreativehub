@@ -187,7 +187,7 @@ npx --yes tsx --test src/utils/sla.test.ts src/utils/workflow.test.ts
 
 ## 👥 Acesso por perfil
 
-- **Henricke (administradora)**: dashboard, todas as solicitações, produção, aprovações, relatórios, biblioteca e configurações.
+- **Henricke (administrador)**: dashboard, todas as solicitações, produção, aprovações, relatórios, biblioteca e configurações.
 - **Funcionários**: cadastro/login e portal para criar e acompanhar somente as próprias solicitações, consultar versões e conversar sobre o pedido.
 
 Para entregar uma arte, hospede o arquivo no OneDrive/SharePoint ou serviço da empresa, conceda acesso ao solicitante e registre o link HTTPS na versão da demanda. O sistema compartilha o link; não armazena arquivos binários.
