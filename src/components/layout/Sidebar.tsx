@@ -5,8 +5,6 @@ import {
   KanbanSquare, 
   CheckCircle2, 
   CalendarDays, 
-  Palette, 
-  FileBox, 
   BarChart3, 
   Settings, 
   ShieldCheck,
@@ -19,8 +17,6 @@ export type NavTab =
   | 'kanban'
   | 'aprovacoes'
   | 'calendario'
-  | 'biblioteca'
-  | 'templates'
   | 'relatorios'
   | 'configuracoes';
 
@@ -48,13 +44,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'kanban' as NavTab, label: 'Kanban Criativo', icon: KanbanSquare },
         { id: 'aprovacoes' as NavTab, label: 'Portal de Aprovações', icon: CheckCircle2, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined, highlight: true },
         { id: 'calendario' as NavTab, label: 'Calendário Editorial', icon: CalendarDays },
-      ],
-    },
-    {
-      title: 'ATIVOS & MARCA',
-      items: [
-        { id: 'biblioteca' as NavTab, label: 'Biblioteca de Marca', icon: Palette },
-        { id: 'templates' as NavTab, label: 'Banco de Templates', icon: FileBox },
       ],
     },
     {

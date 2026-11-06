@@ -1,7 +1,7 @@
 # BV Creative Hub 🎨⚡
 > **Plataforma de Gestão, Automação e Esteira de Produção de Design Gráfico para o Departamento Criativo do Grupo BV.**
 
-O **BV Creative Hub** centraliza o ciclo de vida completo das demandas de design do Grupo BV: desde o briefing estruturado, triagem e controle rigoroso de SLAs, até a esteira Kanban de produção, portal formal de aprovação com comparador de versões, biblioteca de identidade visual e relatórios de produtividade.
+O **BV Creative Hub** centraliza o ciclo de vida completo das demandas de design do Grupo BV: desde o briefing estruturado, triagem e controle rigoroso de SLAs, até a esteira Kanban de produção, portal formal de aprovação com comparador de versões e relatórios de produtividade.
 
 ---
 
@@ -36,8 +36,6 @@ bv-creative-hub/
 │   │   ├── kanban/              # Quadro Kanban com 5 colunas e validação de esteira
 │   │   ├── aprovacoes/          # Portal formal com comparador V1 x V2 e checklist
 │   │   ├── calendario/          # Cronograma editorial mensal/semanal
-│   │   ├── biblioteca/          # Brand Asset Center (Logos, cores com cópia HEX, tipografia)
-│   │   ├── templates/           # Banco de templates (Figma, Photoshop, PPT)
 │   │   ├── relatorios/          # Relatórios de produtividade, exportação CSV e Print
 │   │   ├── configuracoes/       # Departamentos, usuários e infraestrutura
 │   │   └── ui/                  # Componentes reutilizáveis (Button, Badge, Modal)
@@ -194,7 +192,7 @@ npx --yes tsx --test src/utils/sla.test.ts src/utils/workflow.test.ts
 
 ## 👥 Acesso por perfil
 
-- **Henricke (administrador)**: dashboard, todas as solicitações, produção, aprovações, relatórios, biblioteca e configurações.
+- **Henricke (administrador)**: dashboard, todas as solicitações, produção, aprovações, relatórios e configurações.
 - **Funcionários**: cadastro/login e portal para criar e acompanhar somente as próprias solicitações, consultar versões e conversar sobre o pedido.
 
 Para entregar uma arte, hospede o arquivo no OneDrive/SharePoint ou serviço da empresa, conceda acesso ao solicitante e registre o link HTTPS na versão da demanda. O sistema compartilha o link; não armazena arquivos binários.

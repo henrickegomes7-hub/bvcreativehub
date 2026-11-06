@@ -40,7 +40,7 @@ interface DashboardViewProps {
   departments: Department[];
   currentUser: UserProfile;
   onSelectRequest: (id: string) => void;
-  onNavigateToTab: (tab: 'solicitacoes' | 'kanban' | 'aprovacoes' | 'biblioteca' | 'relatorios') => void;
+  onNavigateToTab: (tab: 'solicitacoes' | 'kanban' | 'aprovacoes' | 'relatorios') => void;
   onOpenNewRequest: () => void;
 }
 

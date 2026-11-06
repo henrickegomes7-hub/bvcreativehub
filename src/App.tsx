@@ -3,15 +3,12 @@ import {
   CreativeRequest, 
   Department, 
   UserProfile, 
-  BrandAsset, 
-  GraphicTemplate, 
   NotificationItem, 
   RequestStatus, 
   RequestVersion,
   RequestComment,
   RequestApproval,
 } from './types';
-import { catalogService } from './services/catalogService';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { DashboardView } from './components/dashboard/DashboardView';
@@ -19,8 +16,6 @@ import { SolicitacoesView } from './components/solicitacoes/SolicitacoesView';
 import { KanbanView } from './components/kanban/KanbanView';
 import { AprovacoesView } from './components/aprovacoes/AprovacoesView';
 import { CalendarioView } from './components/calendario/CalendarioView';
-import { BibliotecaView } from './components/biblioteca/BibliotecaView';
-import { TemplatesView } from './components/templates/TemplatesView';
 import { RelatoriosView } from './components/relatorios/RelatoriosView';
 import { ConfiguracoesView } from './components/configuracoes/ConfiguracoesView';
 import { NovaDemandaModal } from './components/solicitacoes/NovaDemandaModal';
@@ -33,8 +28,6 @@ export default function App() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [currentUser, setCurrentUser] = useState<UserProfile | null>(null);
-  const [brandAssets, setBrandAssets] = useState<BrandAsset[]>([]);
-  const [templates, setTemplates] = useState<GraphicTemplate[]>([]);
   const [notifications, setNotifications] = useState<NotificationItem[]>([]);
   const [authStatus, setAuthStatus] = useState<AuthStatus | null>(null);
   const [authLoading, setAuthLoading] = useState(true);
@@ -81,8 +74,6 @@ export default function App() {
     setDepartments(nextDepartments);
     setUsers(userData.users.map((item) => toUserProfile(item, departmentId)));
     setCurrentUser(toUserProfile(user, departmentId));
-    setBrandAssets(catalogService.getBrandAssets());
-    setTemplates(catalogService.getTemplates());
     setNotifications([]);
   };
 
@@ -243,24 +234,9 @@ export default function App() {
     setNotifications((items) => items.map((item) => ({ ...item, read: true })));
   };
 
-  const handleDownloadAsset = (id: string) => {
-    catalogService.incrementAssetDownload(id);
-    setBrandAssets(catalogService.getBrandAssets());
-  };
-
-  const handleDownloadTemplate = (id: string) => {
-    catalogService.incrementTemplateDownload(id);
-    setTemplates(catalogService.getTemplates());
-  };
-
   const handleSaveDepartment = async (dept: Department) => {
     const { department } = await apiClient.createDepartment(dept);
     setDepartments((current) => [...current, department]);
-  };
-
-  const handleAddBrandAsset = (asset: BrandAsset) => {
-    catalogService.saveBrandAsset(asset);
-    setBrandAssets(catalogService.getBrandAssets());
   };
 
   if (authLoading) return <div className="min-h-screen flex items-center justify-center bg-[#F5F6F8] dark:bg-[#070D1E] text-sm text-slate-500">Carregando...</div>;
@@ -299,8 +275,6 @@ export default function App() {
       case 'kanban': return 'Quadro Kanban de Produção';
       case 'aprovacoes': return 'Portal de Validação & Aprovação';
       case 'calendario': return 'Calendário Editorial de Entregas';
-      case 'biblioteca': return 'Brand Asset Center BV';
-      case 'templates': return 'Banco de Templates';
       case 'relatorios': return 'Relatórios de Produtividade & SLA';
       case 'configuracoes': return 'Configurações do Sistema';
       default: return 'BV Creative Hub';
@@ -388,21 +362,6 @@ export default function App() {
                 departments={departments}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
                 onOpenNewRequest={() => setIsNewRequestOpen(true)}
-              />
-            )}
-
-            {isAdmin && activeTab === 'biblioteca' && (
-              <BibliotecaView
-                assets={brandAssets}
-                onDownloadAsset={handleDownloadAsset}
-                onAddAsset={handleAddBrandAsset}
-              />
-            )}
-
-            {isAdmin && activeTab === 'templates' && (
-              <TemplatesView
-                templates={templates}
-                onDownloadTemplate={handleDownloadTemplate}
               />
             )}
 
