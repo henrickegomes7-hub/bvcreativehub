@@ -239,7 +239,7 @@ export default function App() {
     setDepartments((current) => [...current, department]);
   };
 
-  if (authLoading) return <div className={`min-h-screen flex items-center justify-center text-sm ${theme === 'dark' ? 'bg-white text-[#083181]' : 'bg-[#083181] text-white'}`}>Carregando...</div>;
+  if (authLoading) return <div className={`min-h-screen flex items-center justify-center text-sm ${theme === 'light' ? 'bg-white text-[#083181]' : 'bg-[#083181] text-white'}`}>Carregando...</div>;
   if (!currentUser) {
     return (
       <AuthView
