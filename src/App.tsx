@@ -35,6 +35,7 @@ export default function App() {
 
   // Navigation & Modals
   const [activeTab, setActiveTab] = useState<NavTab>('dashboard');
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
@@ -284,14 +285,19 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-screen bg-[#F5F6F8] dark:bg-[#070D1E] text-[#171A19] dark:text-[#F8FAFC] overflow-hidden transition-colors duration-200">
+    <div className="flex h-dvh bg-[#F5F6F8] dark:bg-[#070D1E] text-[#171A19] dark:text-[#F8FAFC] overflow-hidden transition-colors duration-200">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={visibleTab}
-        onSelectTab={setActiveTab}
+        onSelectTab={(tab) => {
+          setActiveTab(tab);
+          setIsMobileMenuOpen(false);
+        }}
         pendingApprovalsCount={pendingApprovalsCount}
         totalActiveCount={activeCount}
         isAdmin={isAdmin}
+        isOpen={isMobileMenuOpen}
+        onClose={() => setIsMobileMenuOpen(false)}
       />
 
       {/* Main Content Area */}
@@ -311,10 +317,11 @@ export default function App() {
           activeTabTitle={getTabTitle(visibleTab)}
           theme={theme}
           onToggleTheme={toggleTheme}
+          onOpenMenu={() => setIsMobileMenuOpen(true)}
         />
 
         {/* Scrollable View Container */}
-        <main className="flex-1 overflow-y-auto p-6 md:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-8">
           <div className="max-w-7xl mx-auto">
             {isAdmin && activeTab === 'dashboard' && (
               <DashboardView

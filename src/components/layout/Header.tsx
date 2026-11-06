@@ -10,6 +10,7 @@ import {
   Sun,
   Moon,
   LogOut,
+  Menu,
 } from 'lucide-react';
 import { UserProfile, NotificationItem } from '../../types';
 import { Button } from '../ui/Button';
@@ -28,6 +29,7 @@ interface HeaderProps {
   activeTabTitle: string;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
+  onOpenMenu: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
@@ -44,6 +46,7 @@ export const Header: React.FC<HeaderProps> = ({
   activeTabTitle,
   theme,
   onToggleTheme,
+  onOpenMenu,
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
 
@@ -60,15 +63,23 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-30 flex items-center justify-between h-16 px-6 bg-white dark:bg-[#0E172E] border-b border-slate-200 dark:border-[#1F3057] shadow-xs transition-colors">
+    <header className="sticky top-0 z-30 flex min-h-16 flex-wrap items-center justify-between gap-y-2 border-b border-slate-200 bg-white px-3 py-2 shadow-xs transition-colors dark:border-[#1F3057] dark:bg-[#0E172E] sm:h-16 sm:flex-nowrap sm:px-6 sm:py-0">
       {/* Title & Search */}
-      <div className="flex items-center gap-6">
-        <div>
-          <h1 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{activeTabTitle}</h1>
+      <div className="order-1 flex min-w-0 flex-1 items-center gap-2 sm:gap-6">
+        <button
+          type="button"
+          onClick={onOpenMenu}
+          className="shrink-0 rounded-lg p-2 text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-800 md:hidden"
+          aria-label="Abrir menu"
+        >
+          <Menu className="h-5 w-5" />
+        </button>
+        <div className="min-w-0">
+          <h1 className="truncate text-base font-bold tracking-tight text-slate-900 dark:text-white sm:text-xl">{activeTabTitle}</h1>
         </div>
 
         {/* Global Search Input */}
-        {isAdmin && <div className="relative w-72 md:w-80">
+        {isAdmin && <div className="relative hidden w-72 md:block md:w-80">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-slate-400" />
           <input
             type="text"
@@ -81,7 +92,7 @@ export const Header: React.FC<HeaderProps> = ({
       </div>
 
       {/* Right Actions */}
-      <div className="flex items-center gap-2.5">
+      <div className="order-2 flex shrink-0 items-center gap-1 sm:gap-2.5">
         {/* Dark / Light Mode Switcher */}
         <button
           onClick={onToggleTheme}
@@ -103,8 +114,9 @@ export const Header: React.FC<HeaderProps> = ({
           onClick={onOpenNewRequest}
           icon={<Plus className="w-4 h-4" />}
           className="shadow-sm shadow-[#083181]/30"
+          aria-label="Nova demanda"
         >
-          Nova Demanda
+          <span className="hidden sm:inline">Nova Demanda</span>
         </Button>
 
         {/* Notifications Popover */}
@@ -215,6 +227,16 @@ export const Header: React.FC<HeaderProps> = ({
           </button>
         </div>
       </div>
+      {isAdmin && <div className="relative order-3 w-full sm:hidden">
+        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-slate-400" />
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={(e) => onSearchChange(e.target.value)}
+          placeholder="Buscar demandas..."
+          className="w-full rounded-lg border border-slate-200 bg-slate-50 py-2 pl-9 pr-3 text-xs text-slate-800 placeholder-slate-400 focus:border-[#083181] focus:outline-none focus:ring-2 focus:ring-[#083181]/30 dark:border-[#1F3057] dark:bg-[#131F3D] dark:text-slate-100"
+        />
+      </div>}
     </header>
   );
 };

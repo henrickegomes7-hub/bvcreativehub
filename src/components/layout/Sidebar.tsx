@@ -26,6 +26,8 @@ interface SidebarProps {
   pendingApprovalsCount: number;
   totalActiveCount: number;
   isAdmin: boolean;
+  isOpen: boolean;
+  onClose: () => void;
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -34,6 +36,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingApprovalsCount,
   totalActiveCount,
   isAdmin,
+  isOpen,
+  onClose,
 }) => {
   const adminSections = [
     {
@@ -64,9 +68,16 @@ export const Sidebar: React.FC<SidebarProps> = ({
   ];
 
   return (
-    <aside className="w-64 h-screen bg-[#05163D] dark:bg-[#040B1D] text-slate-300 flex flex-col shrink-0 border-r border-[#082463] dark:border-white/10 select-none">
+    <div className={`fixed inset-0 z-40 md:relative md:inset-auto md:z-auto ${isOpen ? 'flex' : 'hidden'} md:flex`}>
+      <button
+        type="button"
+        className="absolute inset-0 bg-slate-950/60 md:hidden"
+        onClick={onClose}
+        aria-label="Fechar menu"
+      />
+      <aside className="relative z-10 flex h-full w-[min(18rem,85vw)] shrink-0 flex-col border-r border-[#082463] bg-[#05163D] text-slate-300 dark:border-white/10 dark:bg-[#040B1D] select-none md:h-screen md:w-64">
       {/* Brand Header */}
-      <div className="h-16 flex items-center px-4 border-b border-white/10 gap-3">
+      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
         <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-xs hover:border-white/30 transition-all">
           <img
             src="/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png"
@@ -81,6 +92,14 @@ export const Sidebar: React.FC<SidebarProps> = ({
           </div>
           <p className="text-[10px] text-slate-400 font-medium truncate">Departamento Criativo BV</p>
         </div>
+        <button
+          type="button"
+          onClick={onClose}
+          className="ml-auto rounded-lg p-2 text-slate-300 hover:bg-white/10 md:hidden"
+          aria-label="Fechar menu"
+        >
+          <span aria-hidden="true">×</span>
+        </button>
       </div>
 
       {/* Navigation Links */}
@@ -145,6 +164,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <span className="w-2 h-2 rounded-full bg-[#a0b900]" />
         </div>
       </div>
-    </aside>
+      </aside>
+    </div>
   );
 };

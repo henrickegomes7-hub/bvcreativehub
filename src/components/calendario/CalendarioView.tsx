@@ -39,6 +39,18 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
 
   // Group requests by date (day of current month)
   const daysArray = Array.from({ length: daysInMonth }, (_, i) => i + 1);
+  const mobileDeliveryDays = daysArray
+    .map((day) => ({
+      day,
+      requests: requests.filter((request) => {
+        if (!request.deadline) return false;
+        const deadline = new Date(request.deadline);
+        return deadline.getDate() === day
+          && deadline.getMonth() === currentDate.getMonth()
+          && deadline.getFullYear() === currentDate.getFullYear();
+      }),
+    }))
+    .filter(({ requests: dayRequests }) => dayRequests.length > 0);
 
   return (
     <div className="space-y-4">
@@ -49,10 +61,11 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
             <CalendarIcon className="w-5 h-5" />
           </div>
           <div>
-            <h2 className="text-base font-bold text-slate-900 dark:text-white tracking-tight">
-              Calendário Editorial & Cronograma de Entregas
+            <h2 className="text-sm font-bold text-slate-900 dark:text-white tracking-tight sm:text-base">
+              <span className="sm:hidden">Calendário de Entregas</span>
+              <span className="hidden sm:inline">Calendário Editorial & Cronograma de Entregas</span>
             </h2>
-            <p className="text-xs text-slate-500 dark:text-slate-400">
+            <p className="hidden text-xs text-slate-500 dark:text-slate-400 sm:block">
               Acompanhamento diário das datas de corte e prazos finais do departamento criativo.
             </p>
           </div>
@@ -84,7 +97,7 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs overflow-hidden">
+      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] sm:block">
         {/* Days of Week Header */}
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-[#1F3057] bg-slate-50 dark:bg-[#131F3D] text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider py-2.5">
           <span>Dom</span>
@@ -159,6 +172,46 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
             );
           })}
         </div>
+      </div>
+
+      <div className="space-y-3 sm:hidden">
+        {mobileDeliveryDays.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] dark:text-slate-400">
+            Nenhuma entrega prevista para este mês.
+          </div>
+        ) : mobileDeliveryDays.map(({ day, requests: dayRequests }) => (
+          <section
+            key={day}
+            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]"
+          >
+            <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
+              {new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toLocaleDateString('pt-BR', {
+                weekday: 'long',
+                day: 'numeric',
+                month: 'long',
+              })}
+            </h3>
+            <div className="space-y-2">
+              {dayRequests.map((request) => (
+                <button
+                  key={request.id}
+                  type="button"
+                  onClick={() => onSelectRequest(request.id)}
+                  className="w-full rounded-lg border p-3 text-left"
+                  style={{
+                    backgroundColor: `${STATUS_COLORS[request.status]}15`,
+                    borderColor: `${STATUS_COLORS[request.status]}40`,
+                    color: STATUS_COLORS[request.status],
+                  }}
+                >
+                  <span className="block text-[10px] font-bold">{request.code}</span>
+                  <span className="mt-0.5 block text-xs font-semibold">{request.title}</span>
+                  <span className="mt-1 block text-[10px] opacity-80">{STATUS_LABELS[request.status]}</span>
+                </button>
+              ))}
+            </div>
+          </section>
+        ))}
       </div>
     </div>
   );

@@ -147,8 +147,8 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          <span className="text-xs text-slate-500 dark:text-slate-400">
+        <div className="flex items-center justify-between gap-2 sm:justify-end">
+          <span className="text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
             Mostrando <strong>{filteredRequests.length}</strong> de {requests.length}
           </span>
           <Button variant="primary" size="sm" onClick={onOpenNewRequest} icon={<Plus className="w-3.5 h-3.5" />}>
@@ -158,7 +158,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
       </div>
 
       {/* Table Container */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs overflow-hidden">
+      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] md:block">
         <div className="overflow-x-auto">
           <table className="w-full text-left border-collapse">
             <thead>
@@ -290,6 +290,66 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
             </tbody>
           </table>
         </div>
+      </div>
+
+      <div className="space-y-3 md:hidden">
+        {filteredRequests.length === 0 ? (
+          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-400 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]">
+            <Layers className="mx-auto mb-2 h-8 w-8 opacity-50" />
+            <p className="font-semibold text-slate-700 dark:text-slate-300">Nenhuma demanda encontrada.</p>
+            <p className="mt-1 text-xs">Ajuste os filtros ou cadastre uma nova solicitação.</p>
+          </div>
+        ) : filteredRequests.map((req) => {
+          const sla = getSlaStatus(req.deadline, req.status === 'approved');
+          const dept = departments.find((d) => d.id === req.department_id);
+          const pColors = PRIORITY_COLORS[req.priority];
+
+          return (
+            <button
+              key={req.id}
+              type="button"
+              onClick={() => onSelectRequest(req.id)}
+              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition-colors hover:border-[#083181]/40 dark:border-[#1F3057] dark:bg-[#0E172E]"
+            >
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">{req.code}</p>
+                  <h3 className="mt-1 break-words text-sm font-bold text-slate-900 dark:text-white">{req.title}</h3>
+                </div>
+                <span
+                  className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
+                  style={{ backgroundColor: STATUS_COLORS[req.status] }}
+                >
+                  {STATUS_LABELS[req.status]}
+                </span>
+              </div>
+              <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{req.description}</p>
+              <div className="mt-3 flex flex-wrap items-center gap-2">
+                <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300">
+                  <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dept?.color || '#083181' }} />
+                  {dept?.name || 'Geral'}
+                </span>
+                <span
+                  className="rounded border px-2 py-0.5 text-[10px] font-semibold"
+                  style={{ backgroundColor: pColors.bg, color: pColors.text, borderColor: pColors.border }}
+                >
+                  {PRIORITY_LABELS[req.priority]}
+                </span>
+                <Badge
+                  variant={sla.status === 'overdue' ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'}
+                  size="sm"
+                  dot
+                >
+                  {sla.label}
+                </Badge>
+              </div>
+              <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                <span className="truncate">{req.assignee_name || 'Aguardando responsável'}</span>
+                <span className="ml-3 shrink-0">{getFormatLabel(req.format)}</span>
+              </div>
+            </button>
+          );
+        })}
       </div>
     </div>
   );

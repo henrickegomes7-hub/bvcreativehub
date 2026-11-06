@@ -98,7 +98,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
       </div>
 
       {/* Kanban Board Horizontal Scroll */}
-      <div className="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-4 items-start overflow-x-auto pb-4">
+      <div className="grid auto-cols-[minmax(260px,85vw)] grid-flow-col items-start gap-3 overflow-x-auto pb-4 md:auto-cols-auto md:grid-flow-row md:grid-cols-3 md:gap-4 lg:grid-cols-5">
         {STATUS_SEQUENCE.map((colStatus, colIndex) => {
           const colRequests = filteredRequests.filter(r => r.status === colStatus);
           const colColor = STATUS_COLORS[colStatus];
