@@ -63,7 +63,8 @@ bv-creative-hub/
 │   └── seed.sql                 # Dados demonstrativos legados
 ├── database/
 │   └── migrations/
-│       └── 20261105000000_create_standalone_auth.sql          # Login e solicitações PostgreSQL
+│       ├── 20261105000000_create_standalone_auth.sql          # Login e solicitações PostgreSQL
+│       └── 20261106000000_update_business_departments.sql     # Departamentos comerciais BV
 ├── .env.example                 # Modelo de variáveis de ambiente
 ├── package.json                 # Dependências e scripts
 ├── tsconfig.json                # Configuração TypeScript rigorosa
@@ -112,6 +113,8 @@ npm install
 
 Crie um banco PostgreSQL gerenciado (por exemplo, Neon ou Railway) e configure o backend. A aplicação não guarda as solicitações no navegador; sem o banco central, login e cadastro ficam desabilitados.
 
+Os departamentos disponíveis são PLANO BOA VIAGEM, BV FLORES, BV PLAY, BV FINANÇAS, BV SAÚDE, BV PET, SAÚDE BV e FUNERÁRIA. A lista é compartilhada pelas áreas administrativas e de funcionários.
+
 Copie `.env.example` para `.env` e preencha as variáveis abaixo. Em Vercel, cadastre-as em **Project Settings > Environment Variables**:
 
 ```bash
@@ -138,11 +141,13 @@ As páginas públicas de [Política de Privacidade](/politica-de-privacidade) e 
 
 ### 5. Criar as tabelas
 
-Configure `DATABASE_URL` no ambiente ou no `.env` e execute a migração:
+Configure `DATABASE_URL` no ambiente ou no `.env` e execute as migrações:
 
 ```bash
 npm run db:migrate
 ```
+
+O comando aplica, em ordem, todos os arquivos SQL em `database/migrations`, inclusive a atualização dos departamentos existentes. Se for executar manualmente no Neon, rode também o arquivo `20261106000000_update_business_departments.sql` depois da criação inicial das tabelas.
 
 Não aplique o schema legado de `supabase/migrations` neste PostgreSQL independente. Ele depende do serviço de autenticação próprio do Supabase.
 

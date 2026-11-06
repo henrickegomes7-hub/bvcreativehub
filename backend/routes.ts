@@ -514,7 +514,18 @@ apiRouter.get('/departments', requireUser, async (_req, res) => {
   try {
     const result = await getPool().query(
       `SELECT id, code, name, manager_name, icon, color, description
-       FROM app_departments ORDER BY name`,
+       FROM app_departments
+       ORDER BY CASE id
+         WHEN 'dept-cartoes' THEN 1
+         WHEN 'dept-veiculos' THEN 2
+         WHEN 'dept-marketing' THEN 3
+         WHEN 'dept-imobiliario' THEN 4
+         WHEN 'dept-rh' THEN 5
+         WHEN 'dept-inovacao' THEN 6
+         WHEN 'dept-compliance' THEN 7
+         WHEN 'dept-funeraria' THEN 8
+         ELSE 9
+       END, name`,
     );
     res.json({ departments: result.rows });
   } catch (error) {

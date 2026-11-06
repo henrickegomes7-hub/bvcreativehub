@@ -32,7 +32,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   const [targetAudience, setTargetAudience] = useState('');
   const [keyMessage, setKeyMessage] = useState('');
   const [ctaText, setCtaText] = useState('');
-  const [mandatoryElements, setMandatoryElements] = useState('Logo Oficial BV, Aviso Legal BACEN');
+  const [mandatoryElements, setMandatoryElements] = useState('Logotipo da marca, Informações obrigatórias da campanha');
   const [tags, setTags] = useState('Campanha, Digital');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
@@ -42,10 +42,10 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
 
   const quickIdeas = [
-    { label: '💳 Cartão Cashback 3%', topic: 'Campanha de aquisição do Cartão BV Visa Platinum com 3% de cashback nos 3 primeiros meses' },
-    { label: '🚗 Feirão de Veículos 0,99%', topic: 'Feirão Nacional de Veículos Seminovos BV com taxa de 0.99% e 1ª parcela para 90 dias' },
-    { label: '📱 Open Finance no App BV', topic: 'Vídeo animação motion divulgando a integração de contas via Open Finance no Super App BV' },
-    { label: '🌿 Relatório ESG 2026', topic: 'Diagramação do e-book executivo do Relatório Anual Integrado de Sustentabilidade & ESG BV' },
+    { label: '✈️ Plano Boa Viagem', topic: 'Campanha do PLANO BOA VIAGEM' },
+    { label: '🌸 BV Flores', topic: 'Campanha de divulgação da BV FLORES' },
+    { label: '🎬 BV Play', topic: 'Campanha de conteúdo e entretenimento da BV PLAY' },
+    { label: '🐾 BV Pet', topic: 'Campanha de serviços e cuidados para animais da BV PET' },
   ];
 
   const handleAiSuggest = async (topicToUse?: string) => {
@@ -166,7 +166,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
           </div>
 
           <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-2.5">
-            Digite um tema resumido ou clique em uma das sugestões abaixo para preencher automaticamente título, formato ideal, departamento, CTA, público e disclaimers legais BACEN.
+            Digite um tema resumido ou clique em uma das sugestões abaixo para preencher automaticamente título, formato ideal, departamento, CTA, público e elementos obrigatórios.
           </p>
 
           <div className="flex flex-col sm:flex-row gap-2 mb-2.5">
@@ -174,7 +174,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
               type="text"
               value={aiTopic}
               onChange={(e) => setAiTopic(e.target.value)}
-              placeholder="Ex: Campanha de Cashback Cartão BV Visa Platinum..."
+              placeholder="Ex: Campanha para a BV Flores..."
               className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-[#131F3D] border border-blue-200 dark:border-[#1F3057] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181] text-slate-800 dark:text-slate-100"
             />
             <Button
@@ -231,7 +231,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
                   setTitle(e.target.value);
                   if (errors.title) setErrors(prev => ({ ...prev, title: '' }));
                 }}
-                placeholder="Ex: Campanha Cartão BV Visa Infinite - Anuidade Zero"
+                placeholder="Ex: Campanha para um dos departamentos BV"
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-[#131F3D] border border-slate-300 dark:border-[#1F3057] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181] text-slate-800 dark:text-slate-100"
               />
               {errors.title && <p className="text-xs text-rose-600 mt-1">{errors.title}</p>}
@@ -354,7 +354,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
                     type="text"
                     value={ctaText}
                     onChange={(e) => setCtaText(e.target.value)}
-                    placeholder="Ex: Baixe o App BV e aproveite"
+                    placeholder="Ex: Saiba mais"
                     className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
                   />
                 </div>
@@ -367,7 +367,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
                     type="text"
                     value={mandatoryElements}
                     onChange={(e) => setMandatoryElements(e.target.value)}
-                    placeholder="Ex: Logo BV Oficial, Tarja BACEN, Bandeira Visa"
+                    placeholder="Ex: Logotipo da marca, informações obrigatórias"
                     className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
                   />
                 </div>
@@ -380,7 +380,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
                     type="text"
                     value={tags}
                     onChange={(e) => setTags(e.target.value)}
-                    placeholder="Ex: Performance, Cartões, Black Friday"
+                    placeholder="Ex: Campanha, lançamento, sazonal"
                     className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
                   />
                 </div>

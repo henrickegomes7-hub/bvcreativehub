@@ -55,11 +55,12 @@ CREATE TABLE IF NOT EXISTS app_departments (
 
 INSERT INTO app_departments (id, code, name, manager_name, icon, color, description)
 VALUES
-  ('dept-cartoes', 'CART', 'Cartões BV & Fidelidade', 'Mariana Alencar', 'CreditCard', '#083181', 'Campanhas de aquisição, ativação, cashback e benefícios de cartões de crédito BV.'),
-  ('dept-veiculos', 'VEIC', 'Veículos & Financiamentos', 'Carlos Eduardo Prado', 'Car', '#c56a2d', 'Comunicação para rede de concessionárias parceiras, feirões e financiamento de veículos.'),
-  ('dept-marketing', 'MKTG', 'Marketing Institucional & Marca', 'Beatriz Castilho', 'Megaphone', '#a0b900', 'Posicionamento institucional, patrocínios, ESG, relatórios e imprensa.'),
-  ('dept-imobiliario', 'IMOB', 'Crédito Imobiliário & Solar', 'Henrique Faria', 'Home', '#2563EB', 'Campanhas de crédito com garantia de imóvel e financiamento solar BV.'),
-  ('dept-rh', 'RHEN', 'Gente, Gestão & Endomarketing', 'Patrícia Nogueira', 'Users', '#9333EA', 'Comunicação interna para colaboradores, programas de inclusão e eventos corporativos.'),
-  ('dept-inovacao', 'INOV', 'Inovação & Produtos Digitais', 'Gustavo Pinheiro', 'Sparkles', '#0D9488', 'Lançamentos de recursos no Super App BV, jornadas de conta digital e Open Finance.'),
-  ('dept-compliance', 'COMP', 'Compliance, Risco & Jurídico', 'Renata Vilela', 'ShieldCheck', '#475569', 'Comunicações regulatórias do BACEN, segurança da informação e prevenção a fraudes.')
+  ('dept-cartoes', 'PBOA', 'PLANO BOA VIAGEM', 'A definir', 'Building2', '#083181', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-veiculos', 'FLORES', 'BV FLORES', 'A definir', 'Building2', '#c56a2d', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-marketing', 'PLAY', 'BV PLAY', 'A definir', 'Building2', '#a0b900', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-imobiliario', 'FIN', 'BV FINANÇAS', 'A definir', 'Building2', '#2563EB', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-rh', 'SAUDE', 'BV SAÚDE', 'A definir', 'Building2', '#9333EA', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-inovacao', 'PET', 'BV PET', 'A definir', 'Building2', '#0D9488', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-compliance', 'SBV', 'SAÚDE BV', 'A definir', 'Building2', '#475569', 'Departamento solicitante do BV Creative Hub.'),
+  ('dept-funeraria', 'FUNE', 'FUNERÁRIA', 'A definir', 'Building2', '#64748B', 'Departamento solicitante do BV Creative Hub.')
 ON CONFLICT (id) DO NOTHING;

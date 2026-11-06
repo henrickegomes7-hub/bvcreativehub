@@ -48,24 +48,29 @@ export async function requestGeminiDemandSuggestion(
 
   // Fallback local caso o endpoint não esteja acessível
   const lower = topic.toLowerCase();
-  let dept = departmentCode || 'CART';
+  let dept = departmentCode || 'FIN';
   let fmt: AssetFormat = 'social_feed';
   let hours = 12;
   let priority: RequestPriority = 'medium';
 
-  if (lower.includes('veículo') || lower.includes('carro') || lower.includes('feirão')) {
-    dept = 'VEIC';
-    fmt = 'ooh_print';
-    hours = 20;
-    priority = 'high';
-  } else if (lower.includes('app') || lower.includes('digital') || lower.includes('motion')) {
-    dept = 'INOV';
+  if (lower.includes('funer') || lower.includes('sepult') || lower.includes('luto')) {
+    dept = 'FUNE';
+  } else if (lower.includes('bv pet') || lower.includes('pet') || lower.includes('animal') || lower.includes('cachorro') || lower.includes('gato')) {
+    dept = 'PET';
+  } else if (lower.includes('saúde bv') || lower.includes('saude bv')) {
+    dept = 'SBV';
+  } else if (lower.includes('bv saúde') || lower.includes('bv saude') || lower.includes('saúde') || lower.includes('saude') || lower.includes('plano de saúde')) {
+    dept = 'SAUDE';
+  } else if (lower.includes('flores') || lower.includes('floricultura')) {
+    dept = 'FLORES';
+  } else if (lower.includes('boa viagem') || lower.includes('viagem') || lower.includes('turismo')) {
+    dept = 'PBOA';
+  } else if (lower.includes('bv play') || lower.includes('streaming') || lower.includes('entretenimento') || lower.includes('série') || lower.includes('filme')) {
+    dept = 'PLAY';
+  } else if (lower.includes('finanças') || lower.includes('financas') || lower.includes('financeiro') || lower.includes('crédito') || lower.includes('credito') || lower.includes('cartão') || lower.includes('cartao')) {
+    dept = 'FIN';
+  } else if (lower.includes('motion') || lower.includes('vídeo') || lower.includes('video')) {
     fmt = 'motion';
-    hours = 18;
-  } else if (lower.includes('esg') || lower.includes('relatório')) {
-    dept = 'MKTG';
-    fmt = 'ebook';
-    hours = 30;
   }
 
   return {
@@ -74,10 +79,10 @@ export async function requestGeminiDemandSuggestion(
     format: fmt,
     priority,
     estimated_hours: hours,
-    target_audience: 'Clientes pessoa física e prospects do Grupo BV',
-    key_message: `Condições exclusivas e transparência em cada etapa com o Banco BV.`,
-    cta_text: 'Simule online ou acesse o App BV agora mesmo.',
-    mandatory_elements: ['Logo Oficial BV', 'Tarja BACEN regulatória', 'Disclaimers de taxa'],
+    target_audience: 'Público definido para a demanda',
+    key_message: 'Conheça nossos serviços e soluções. Saiba mais.',
+    cta_text: 'Saiba mais.',
+    mandatory_elements: ['Logotipo da marca', 'Informações obrigatórias da campanha'],
     tags: ['Campanha', 'Performance', 'GrupoBV', dept],
     suggested_department_code: dept,
     source: 'local-intelligent-engine',

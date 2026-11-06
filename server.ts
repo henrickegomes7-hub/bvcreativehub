@@ -54,12 +54,12 @@ app.post('/api/gemini/suggest-demand', requireUser, async (req: Request, res: Re
   // Se o cliente Gemini estiver configurado, executa a chamada com modelo gemini-3.8-flash
   if (ai) {
     try {
-      const prompt = `Crie uma sugestão completa e estruturada de demanda de design para o Grupo BV a partir da seguinte ideia: "${topic}".
+      const prompt = `Crie uma sugestão completa e estruturada de demanda de design para o BV Creative Hub a partir da seguinte ideia: "${topic}".
 Contexto adicional:
 - Departamento sugerido: ${departmentCode || 'Detectar automaticamente de acordo com o tema'}
 - Formato preliminar: ${formatHint || 'Sugerir o formato gráfico mais adequado'}
 
-Certifique-se de incluir linguagem institucional financeira, disclaimers regulatórios relevantes do BACEN quando aplicável e chamadas de alta conversão.`;
+Certifique-se de usar linguagem adequada ao tema e de incluir avisos regulatórios apenas quando forem aplicáveis à demanda.`;
 
       const response = await ai.models.generateContent({
         model: 'gemini-3.8-flash',
@@ -96,7 +96,7 @@ Certifique-se de incluir linguagem institucional financeira, disclaimers regulat
               },
               suggested_department_code: { 
                 type: Type.STRING, 
-                description: 'CART, VEIC, MKTG, IMOB, RHEN, INOV ou COMP' 
+                description: 'PBOA (PLANO BOA VIAGEM), FLORES (BV FLORES), PLAY (BV PLAY), FIN (BV FINANÇAS), SAUDE (BV SAÚDE), PET (BV PET), SBV (SAÚDE BV) ou FUNE (FUNERÁRIA)'
               }
             },
             required: [
@@ -129,47 +129,42 @@ Certifique-se de incluir linguagem institucional financeira, disclaimers regulat
 
   // Fallback heurístico inteligente especializado no Grupo BV caso a chave não esteja presente no runtime
   const lower = topic.toLowerCase();
-  let dept = 'CART';
+  let dept = 'FIN';
   let fmt = 'social_feed';
   let hours = 12;
   let priority = 'medium';
-  let mandatory = ['Logo Oficial BV', 'Tarja BACEN regulatória'];
+  const mandatory = ['Logotipo da marca', 'Informações obrigatórias da campanha'];
 
-  if (lower.includes('veículo') || lower.includes('carro') || lower.includes('feirão') || lower.includes('financiamento')) {
-    dept = 'VEIC';
-    fmt = 'ooh_print';
-    hours = 20;
-    priority = 'high';
-    mandatory = ['Logo BV Veículos', 'Cores Verde Floresta e Laranja BV', 'Condições de Taxa CET'];
-  } else if (lower.includes('app') || lower.includes('digital') || lower.includes('open finance') || lower.includes('reels') || lower.includes('vídeo') || lower.includes('motion')) {
-    dept = 'INOV';
+  if (lower.includes('funer') || lower.includes('sepult') || lower.includes('luto')) {
+    dept = 'FUNE';
+  } else if (lower.includes('bv pet') || lower.includes('pet') || lower.includes('animal') || lower.includes('cachorro') || lower.includes('gato')) {
+    dept = 'PET';
+  } else if (lower.includes('saúde bv') || lower.includes('saude bv')) {
+    dept = 'SBV';
+  } else if (lower.includes('bv saúde') || lower.includes('bv saude') || lower.includes('saúde') || lower.includes('saude')) {
+    dept = 'SAUDE';
+  } else if (lower.includes('flores') || lower.includes('floricultura')) {
+    dept = 'FLORES';
+  } else if (lower.includes('boa viagem') || lower.includes('viagem') || lower.includes('turismo')) {
+    dept = 'PBOA';
+  } else if (lower.includes('bv play') || lower.includes('streaming') || lower.includes('entretenimento') || lower.includes('série') || lower.includes('filme')) {
+    dept = 'PLAY';
+  } else if (lower.includes('finanças') || lower.includes('financas') || lower.includes('financeiro') || lower.includes('crédito') || lower.includes('credito') || lower.includes('cartão') || lower.includes('cartao') || lower.includes('financiamento')) {
+    dept = 'FIN';
+  } else if (lower.includes('motion') || lower.includes('vídeo') || lower.includes('video')) {
     fmt = 'motion';
-    hours = 18;
-    mandatory = ['UI Kit oficial do App BV', 'Legendas de acessibilidade', 'Disclaimer de segurança'];
-  } else if (lower.includes('esg') || lower.includes('sustentab') || lower.includes('relatório') || lower.includes('institucional')) {
-    dept = 'MKTG';
-    fmt = 'ebook';
-    hours = 32;
-    mandatory = ['Índice interativo', 'Assinatura da Diretoria', 'Certificação GRI'];
-  } else if (lower.includes('onboarding') || lower.includes('colaborador') || lower.includes('rh') || lower.includes('brinde')) {
-    dept = 'RHEN';
-    fmt = 'branding';
-    hours = 16;
-    priority = 'low';
-    mandatory = ['Selo Somos BV', 'Manual de Aplicação em Brindes'];
-  } else if (lower.includes('urgente') || lower.includes('crise') || lower.includes('diretoria')) {
-    priority = 'urgent';
   }
+  if (lower.includes('urgente') || lower.includes('crise') || lower.includes('diretoria')) priority = 'urgent';
 
   const fallbackResult = {
     title: topic.length > 5 ? topic.trim() : 'Campanha Institucional Grupo BV',
-    description: `Desenvolvimento de peças gráficas com foco em ${topic}. O material deverá comunicar os benefícios e diferenciais do Banco BV com clareza e solidez institucional.`,
+    description: `Desenvolvimento de peças gráficas com foco em ${topic}. O material deverá comunicar a mensagem da campanha com clareza.`,
     format: fmt,
     priority: priority,
     estimated_hours: hours,
-    target_audience: 'Clientes pessoa física e parceiros comerciais do Grupo BV',
-    key_message: `Soluções inteligentes que transformam sua jornada financeira com o Banco BV.`,
-    cta_text: 'Consulte as condições e saiba mais no site oficial.',
+    target_audience: 'Público relacionado ao departamento solicitante',
+    key_message: 'Conheça nossos serviços e soluções. Saiba mais.',
+    cta_text: 'Saiba mais.',
     mandatory_elements: mandatory,
     tags: ['GrupoBV', 'Campanha', 'Performance', dept],
     suggested_department_code: dept,
