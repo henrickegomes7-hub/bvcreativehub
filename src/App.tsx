@@ -246,6 +246,8 @@ export default function App() {
         configured={authStatus?.configured ?? false}
         adminSetupRequired={authStatus?.adminSetupRequired ?? false}
         error={authError}
+        theme={theme}
+        onToggleTheme={toggleTheme}
         onLogin={handleLogin}
         onRegister={handleRegister}
         onBootstrapAdmin={handleBootstrapAdmin}

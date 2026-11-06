@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { ArrowLeft, KeyRound, LockKeyhole, LogIn, UserPlus } from 'lucide-react';
+import { ArrowLeft, KeyRound, LockKeyhole, LogIn, Moon, Sun, UserPlus } from 'lucide-react';
 
 type AuthMode = 'login' | 'register' | 'admin' | 'forgot' | 'verify-code' | 'reset-password';
 
@@ -7,6 +7,8 @@ interface AuthViewProps {
   configured: boolean;
   adminSetupRequired: boolean;
   error: string | null;
+  theme: 'light' | 'dark';
+  onToggleTheme: () => void;
   onLogin: (email: string, password: string) => Promise<void>;
   onRegister: (name: string, email: string, password: string) => Promise<void>;
   onBootstrapAdmin: (name: string, email: string, password: string, token: string) => Promise<void>;
@@ -22,6 +24,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
   configured,
   adminSetupRequired,
   error,
+  theme,
+  onToggleTheme,
   onLogin,
   onRegister,
   onBootstrapAdmin,
@@ -114,7 +118,18 @@ export const AuthView: React.FC<AuthViewProps> = ({
 
   return (
     <main className="min-h-screen flex items-center justify-center bg-[#F5F6F8] dark:bg-[#070D1E] px-4 py-10">
-      <section className="w-full max-w-md rounded-2xl bg-white dark:bg-[#0E172E] border border-slate-200 dark:border-[#1F3057] shadow-xl p-8">
+      <section className="relative w-full max-w-md rounded-2xl bg-white dark:bg-[#0E172E] border border-slate-200 dark:border-[#1F3057] shadow-xl p-8">
+        <button
+          type="button"
+          onClick={onToggleTheme}
+          className="absolute right-5 top-5 rounded-lg p-2 text-slate-500 transition-colors hover:bg-slate-100 hover:text-slate-800 dark:text-slate-300 dark:hover:bg-slate-800 dark:hover:text-white"
+          aria-label="Alternar tema claro e escuro"
+          title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
+        >
+          {theme === 'dark'
+            ? <Sun className="h-4 w-4 text-[#e8dda5]" />
+            : <Moon className="h-4 w-4 text-[#083181]" />}
+        </button>
         <div className="mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl bg-[#083181] text-white">
           {isRecovery ? <KeyRound /> : mode === 'login' ? <LogIn /> : mode === 'admin' ? <LockKeyhole /> : <UserPlus />}
         </div>
