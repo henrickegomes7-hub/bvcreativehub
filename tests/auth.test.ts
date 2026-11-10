@@ -14,10 +14,12 @@ import {
   canAccessAdmin,
 } from '../backend/routes.js';
 
-test('normalizeEmail trims and lowercases addresses', () => {
-  assert.equal(normalizeEmail('  User.Name@Example.com  '), 'user.name@example.com');
+test('normalizeEmail trims, lowercases and restricts supported domains', () => {
+  assert.equal(normalizeEmail('  User.Name@Gmail.com  '), 'user.name@gmail.com');
   assert.equal(normalizeEmail('invalid-email'), null);
-  assert.equal(normalizeEmail('user@example.com'), 'user@example.com');
+  assert.equal(normalizeEmail('user@outlook.com'), 'user@outlook.com');
+  assert.equal(normalizeEmail('12345@gmail.com'), null);
+  assert.equal(normalizeEmail('user@company.com'), null);
 });
 
 test('validPassword enforces minimum and maximum length', () => {
@@ -69,10 +71,12 @@ test('publicUser removes the password hash from the response object', () => {
 });
 
 test('validCredentials and validEmailAndPassword centralize auth validation rules', () => {
-  assert.equal(validCredentials('Ana', 'ana@example.com', '123456789012'), true);
-  assert.equal(validCredentials('A', 'ana@example.com', '123456789012'), false);
-  assert.equal(validEmailAndPassword('ana@example.com', '123456789012'), true);
+  assert.equal(validCredentials('Ana', 'ana@gmail.com', '123456789012'), true);
+  assert.equal(validCredentials('A', 'ana@gmail.com', '123456789012'), false);
+  assert.equal(validCredentials('Ana', 'ana@company.com', '123456789012'), false);
+  assert.equal(validEmailAndPassword('ana@hotmail.com', '123456789012'), true);
   assert.equal(validEmailAndPassword('invalid-email', '123456789012'), false);
+  assert.equal(validEmailAndPassword('ana@company.com', '123456789012'), false);
 });
 
 test('isRoleAuthorized allows only permitted roles', () => {

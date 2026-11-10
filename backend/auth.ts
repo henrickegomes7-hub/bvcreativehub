@@ -16,10 +16,22 @@ export function publicUser<T extends AuthUserShape>(user: T): Omit<T, 'password_
   return safeUser;
 }
 
+const allowedEmailDomains = new Set(['gmail.com', 'hotmail.com', 'outlook.com']);
+
 export function normalizeEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
-  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(normalized) ? normalized : null;
+
+  if (!/^(?=[^@]*[a-z])[a-z0-9._%+\-]+@(?:[a-z0-9\-]+\.)+[a-z]{2,}$/.test(normalized)) {
+    return null;
+  }
+
+  const [, domain] = normalized.split('@');
+  if (!domain || !allowedEmailDomains.has(domain)) {
+    return null;
+  }
+
+  return normalized;
 }
 
 export function validPassword(value: unknown): boolean {

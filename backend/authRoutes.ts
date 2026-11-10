@@ -286,19 +286,66 @@ authRouter.post('/auth/password-reset/request', authLimiter, async (req, res) =>
         return;
       }
 
-      const encodedText = Buffer.from(
-        `Seu código para redefinir a senha é ${code}. Ele expira em 15 minutos e só pode ser usado uma vez. Se você não solicitou esta alteração, ignore este e-mail.`,
-        'utf8',
-      ).toString('base64').match(/.{1,76}/g)?.join('\r\n') ?? '';
+      const boundary = `bvcreativehub_${randomUUID()}`;
+      const textBody = [
+        'Olá!',
+        '',
+        'Recebemos uma solicitação para redefinir a senha da sua conta no BV Creative Hub.',
+        '',
+        `Seu código de verificação é: ${code}`,
+        '',
+        'O código expira em 15 minutos e só pode ser usado uma vez.',
+        'Se você não solicitou a redefinição, ignore esta mensagem. Sua senha continuará a mesma.',
+        '',
+        'Atenciosamente,',
+        'Equipe BV Creative Hub',
+      ].join('\n');
+      const htmlBody = `<!doctype html>
+<html lang="pt-BR">
+  <body style="margin:0;padding:32px 16px;background-color:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#14213d;">
+    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">
+      <tr>
+        <td style="padding:28px 32px;background:#103b82;color:#ffffff;font-size:20px;font-weight:700;">BV Creative Hub</td>
+      </tr>
+      <tr>
+        <td style="padding:32px;">
+          <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#14213d;">Redefinição de senha</h1>
+          <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#43536d;">Recebemos uma solicitação para redefinir a senha da sua conta. Use o código abaixo para continuar:</p>
+          <div style="padding:18px;text-align:center;background:#f1f5fc;border:1px solid #dce5f3;border-radius:12px;color:#103b82;font-size:32px;font-weight:700;letter-spacing:8px;">${code}</div>
+          <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#43536d;">O código expira em <strong>15 minutos</strong> e só pode ser usado uma vez.</p>
+          <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#43536d;">Se você não solicitou a redefinição, ignore esta mensagem. Sua senha continuará a mesma.</p>
+        </td>
+      </tr>
+      <tr>
+        <td style="padding:20px 32px;background:#f8faff;border-top:1px solid #e8edf5;font-size:12px;line-height:1.5;color:#68768c;">Mensagem automática de segurança do BV Creative Hub. Não responda a este e-mail.</td>
+      </tr>
+    </table>
+  </body>
+</html>`;
+      const encodeMimeBody = (body: string) => Buffer.from(body, 'utf8')
+        .toString('base64')
+        .match(/.{1,76}/g)
+        ?.join('\r\n') ?? '';
+      const encodedSubject = Buffer.from('Código para redefinir sua senha | BV Creative Hub', 'utf8')
+        .toString('base64');
       const message = [
-        `From: ${gmailSenderEmail}`,
+        `From: BV Creative Hub <${gmailSenderEmail}>`,
         `To: ${user.email}`,
-        'Subject: Código para redefinir sua senha - BV Creative Hub',
+        `Subject: =?UTF-8?B?${encodedSubject}?=`,
         'MIME-Version: 1.0',
+        `Content-Type: multipart/alternative; boundary="${boundary}"`,
+        '',
+        `--${boundary}`,
         'Content-Type: text/plain; charset="UTF-8"',
         'Content-Transfer-Encoding: base64',
         '',
-        encodedText,
+        encodeMimeBody(textBody),
+        `--${boundary}`,
+        'Content-Type: text/html; charset="UTF-8"',
+        'Content-Transfer-Encoding: base64',
+        '',
+        encodeMimeBody(htmlBody),
+        `--${boundary}--`,
       ].join('\r\n');
       const emailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
         method: 'POST',
