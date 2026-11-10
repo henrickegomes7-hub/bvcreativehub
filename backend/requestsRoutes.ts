@@ -1,0 +1,276 @@
+import { randomBytes, randomUUID } from 'node:crypto';
+import { Router } from 'express';
+import { requireAdmin, requireUser, type AuthenticatedRequest } from './auth.js';
+import { getPool } from './database.js';
+
+export const requestsRouter = Router();
+
+function validId(id: string): boolean {
+  return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
+}
+
+requestsRouter.get('/requests', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    const result = req.user?.role === 'admin'
+      ? await getPool().query('SELECT data FROM creative_requests ORDER BY created_at DESC')
+      : await getPool().query('SELECT data FROM creative_requests WHERE requester_id = $1 ORDER BY created_at DESC', [req.user?.id]);
+    res.json({ requests: result.rows.map((row) => row.data) });
+  } catch (error) {
+    console.error('Erro ao carregar demandas:', error);
+    res.status(503).json({ error: 'Não foi possível carregar as demandas.' });
+  }
+});
+
+requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, res) => {
+  if (!req.user) {
+    res.status(401).json({ error: 'Faça login para continuar.' });
+    return;
+  }
+  const body = req.body ?? {};
+  if (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 255
+      || typeof body.description !== 'string' || !body.description.trim() || body.description.trim().length > 10_000
+      || typeof body.department_id !== 'string' || !body.department_id
+      || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
+      || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
+      || !['social_feed', 'social_stories', 'carrossel', 'banner_web', 'motion', 'landing_page', 'ooh_print', 'ebook', 'email_marketing', 'branding'].includes(body.format)
+      || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
+      || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
+      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)) {
+    res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
+    return;
+  }
+  try {
+    const pool = getPool();
+    const client = await pool.connect();
+    try {
+      await client.query('BEGIN');
+      const department = await client.query(
+        'SELECT 1 FROM app_departments WHERE id = $1',
+        [body.department_id],
+      );
+      if (department.rowCount === 0) {
+        await client.query('ROLLBACK');
+        res.status(400).json({ error: 'Selecione um departamento válido.' });
+        return;
+      }
+      const count = await client.query<{ code: string }>(
+        `SELECT 'BV-' || EXTRACT(YEAR FROM NOW())::text || '-' ||
+           LPAD(nextval('creative_request_code_seq')::text, 3, '0') AS code`,
+      );
+      const requestId = randomUUID();
+      const now = new Date().toISOString();
+      const data = {
+        title: body.title.trim().slice(0, 255),
+        description: body.description.trim(),
+        department_id: body.department_id,
+        priority: body.priority,
+        format: body.format,
+        deadline: body.deadline,
+        estimated_hours: body.estimated_hours,
+        tags: body.tags.slice(0, 30).map((tag: string) => tag.slice(0, 100)),
+        briefing: body.briefing,
+        id: requestId,
+        code: count.rows[0].code,
+        requester_id: req.user.id,
+        requester_name: req.user.name,
+        status: 'backlog',
+        assignee_id: undefined,
+        assignee_name: undefined,
+        created_at: now,
+        updated_at: now,
+        current_version: 0,
+        versions: [],
+        comments: [],
+        approvals: [],
+      };
+      await client.query(
+        'INSERT INTO creative_requests (id, requester_id, code, data) VALUES ($1, $2, $3, $4)',
+        [requestId, req.user.id, data.code, data],
+      );
+      await client.query('COMMIT');
+      res.status(201).json({ request: data });
+    } catch (error) {
+      await client.query('ROLLBACK');
+      throw error;
+    } finally {
+      client.release();
+    }
+  } catch (error) {
+    console.error('Erro ao criar demanda:', error);
+    res.status(503).json({ error: 'Não foi possível criar a demanda.' });
+  }
+});
+
+requestsRouter.patch('/requests/:id/status', requireUser, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { status } = req.body ?? {};
+  const allowedStatuses = ['backlog', 'in_progress', 'review', 'client_approval', 'approved'];
+  if (!validId(id) || !allowedStatuses.includes(status)) {
+    res.status(400).json({ error: 'Demanda ou status inválido.' });
+    return;
+  }
+  try {
+    const result = await getPool().query(
+      `UPDATE creative_requests
+       SET data = jsonb_set(data, '{status}', to_jsonb($2::text), true)
+           || jsonb_build_object('updated_at', NOW())
+       WHERE id = $1
+       RETURNING data`,
+      [id, status],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Demanda não encontrada.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao atualizar status:', error);
+    res.status(503).json({ error: 'Não foi possível atualizar o status.' });
+  }
+});
+
+requestsRouter.post('/requests/:id/comments', requireUser, async (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const content = req.body?.content;
+  if (!req.user || !validId(id) || typeof content !== 'string' || !content.trim() || content.length > 5000) {
+    res.status(400).json({ error: 'Comentário inválido.' });
+    return;
+  }
+  try {
+    const result = await getPool().query(
+      `UPDATE creative_requests
+       SET data = jsonb_set(
+         data,
+         '{comments}',
+         COALESCE(data->'comments', '[]'::jsonb) || $2::jsonb,
+         true
+       ) || jsonb_build_object('updated_at', NOW())
+       WHERE id = $1 AND ($3::text = 'admin' OR requester_id = $4)
+       RETURNING data`,
+      [id, JSON.stringify([{
+        id: randomBytes(12).toString('hex'),
+        request_id: id,
+        user_id: req.user.id,
+        user_name: req.user.name,
+        user_avatar: '',
+        user_role: req.user.role,
+        content: content.trim(),
+        is_adjustment: req.user.role === 'requester',
+        resolved: false,
+        created_at: new Date().toISOString(),
+      }]), req.user.role, req.user.id],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Demanda não encontrada ou sem permissão.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao registrar comentário:', error);
+    res.status(503).json({ error: 'Não foi possível registrar o comentário.' });
+  }
+});
+
+requestsRouter.post('/requests/:id/approvals', requireUser, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const { decision, feedback, checklist } = req.body ?? {};
+  if (!validId(id) || !['approved', 'approved_with_notes', 'changes_requested'].includes(decision)
+      || typeof feedback !== 'string' || !Array.isArray(checklist)) {
+    res.status(400).json({ error: 'Parecer de aprovação inválido.' });
+    return;
+  }
+  const status = decision === 'changes_requested' ? 'in_progress' : 'approved';
+  try {
+    const result = await getPool().query(
+      `UPDATE creative_requests
+       SET data = jsonb_set(
+         jsonb_set(
+           data,
+           '{approvals}',
+           COALESCE(data->'approvals', '[]'::jsonb) || jsonb_build_array(
+             jsonb_build_object(
+               'id', $2,
+               'request_id', id::text,
+               'version_number', COALESCE((data->>'current_version')::int, 0),
+               'reviewer_id', $3,
+               'reviewer_name', $4,
+               'reviewer_role', 'admin',
+               'decision', $5,
+               'feedback', $6,
+               'checklist', $7::jsonb,
+               'created_at', NOW()
+             )
+           ),
+           true
+         ),
+         '{status}', to_jsonb($8::text), true
+       ) || jsonb_build_object('updated_at', NOW())
+       WHERE id = $1
+       RETURNING data`,
+      [id, randomBytes(12).toString('hex'), (req as AuthenticatedRequest).user?.id,
+        (req as AuthenticatedRequest).user?.name, decision, feedback, JSON.stringify(checklist), status],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Demanda não encontrada.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao salvar parecer:', error);
+    res.status(503).json({ error: 'Não foi possível salvar o parecer.' });
+  }
+});
+
+requestsRouter.post('/requests/:id/versions', requireUser, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const input = req.body ?? {};
+  if (!validId(id) || typeof input.file_name !== 'string' || typeof input.file_url !== 'string') {
+    res.status(400).json({ error: 'Dados da versão inválidos.' });
+    return;
+  }
+  try {
+    const result = await getPool().query(
+      `UPDATE creative_requests
+       SET data = jsonb_set(
+         jsonb_set(
+           jsonb_set(data, '{versions}', COALESCE(data->'versions', '[]'::jsonb) || jsonb_build_array(
+             jsonb_build_object(
+               'id', $2,
+               'request_id', id::text,
+               'version_number', COALESCE((data->>'current_version')::int, 0) + 1,
+               'file_name', $3,
+               'file_url', $4,
+               'file_size', $5,
+               'file_type', $6,
+               'preview_url', $7,
+               'changelog', $8,
+               'created_by', $9,
+               'created_by_name', $10,
+               'created_at', NOW(),
+               'dimensions', $11,
+               'resolution_dpi', $12,
+               'color_profile', $13
+             )
+           ), true),
+           '{current_version}', to_jsonb(COALESCE((data->>'current_version')::int, 0) + 1), true
+         ),
+         '{status}', to_jsonb(CASE WHEN data->>'status' = 'backlog' THEN 'in_progress' ELSE data->>'status' END), true
+       ) || jsonb_build_object('updated_at', NOW())
+       WHERE id = $1
+       RETURNING data`,
+      [id, randomBytes(12).toString('hex'), input.file_name, input.file_url,
+        input.file_size ?? '', input.file_type ?? '', input.preview_url ?? input.file_url,
+        input.changelog ?? '', (req as AuthenticatedRequest).user?.id,
+        (req as AuthenticatedRequest).user?.name, input.dimensions ?? null,
+        input.resolution_dpi ?? null, input.color_profile ?? null],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Demanda não encontrada.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao salvar versão:', error);
+    res.status(503).json({ error: 'Não foi possível salvar a versão.' });
+  }
+});

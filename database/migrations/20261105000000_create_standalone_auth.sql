@@ -32,7 +32,7 @@ CREATE INDEX IF NOT EXISTS app_password_resets_expiry_idx ON app_password_resets
 CREATE SEQUENCE IF NOT EXISTS creative_request_code_seq START 1;
 
 CREATE TABLE IF NOT EXISTS creative_requests (
-  id UUID PRIMARY KEY,
+  id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
   requester_id UUID NOT NULL REFERENCES app_users(id) ON DELETE RESTRICT,
   code VARCHAR(40) NOT NULL UNIQUE,
   data JSONB NOT NULL,
