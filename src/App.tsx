@@ -236,6 +236,15 @@ export default function App() {
     }
   };
 
+  const handleAssignRequest = async (id: string, assigneeId: string | null) => {
+    try {
+      const { request } = await apiClient.assignRequest(id, assigneeId);
+      updateRequest(request);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível atualizar o responsável pela execução.');
+    }
+  };
+
   const handleAddComment = async (requestId: string, commentData: Omit<RequestComment, 'id' | 'request_id' | 'created_at'>) => {
     try {
       const { request } = await apiClient.addComment(requestId, commentData.content);
@@ -453,7 +462,9 @@ export default function App() {
         onClose={() => setSelectedRequestId(null)}
         currentUser={currentUser}
         isAdmin={isAdmin}
+        users={users}
         onUpdateStatus={handleUpdateStatus}
+        onAssignRequest={handleAssignRequest}
         onAddComment={handleAddComment}
         onSubmitApproval={handleSubmitApproval}
       />

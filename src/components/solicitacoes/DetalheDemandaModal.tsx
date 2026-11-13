@@ -23,8 +23,10 @@ interface DetalheDemandaModalProps {
   isOpen: boolean;
   onClose: () => void;
   currentUser: UserProfile;
+  users: UserProfile[];
   isAdmin: boolean;
   onUpdateStatus: (id: string, status: RequestStatus) => void;
+  onAssignRequest: (id: string, assigneeId: string | null) => void;
   onAddComment: (requestId: string, commentData: {
     user_id: string;
     user_name: string;
@@ -50,8 +52,10 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
   isOpen,
   onClose,
   currentUser,
+  users,
   isAdmin,
   onUpdateStatus,
+  onAssignRequest,
   onAddComment,
   onSubmitApproval,
 }) => {
@@ -253,9 +257,32 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                   <span className="text-slate-500 dark:text-slate-400">Solicitante:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{request.requester_name}</span>
                 </div>
-                <div className="flex justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800">
-                  <span className="text-slate-500 dark:text-slate-400">Responsável Criativo:</span>
-                  <span className="font-semibold text-[#083181] dark:text-[#a0b900]">{request.assignee_name || 'Aguardando alocação'}</span>
+                <div className="space-y-1 border-b border-slate-100 py-1 dark:border-slate-800">
+                  <label htmlFor="request-assignee" className="text-xs text-slate-500 dark:text-slate-400">
+                    Responsável pela execução:
+                  </label>
+                  {isAdmin ? (
+                    <>
+                      <select
+                        id="request-assignee"
+                        value={request.assignee_id ?? ''}
+                        onChange={(event) => onAssignRequest(request.id, event.target.value || null)}
+                        className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-[#083181] focus:outline-none dark:border-slate-700 dark:bg-[#0E172E] dark:text-slate-200"
+                      >
+                        <option value="">Aguardando alocação</option>
+                        {users.map((user) => (
+                          <option key={user.id} value={user.id}>{user.name}</option>
+                        ))}
+                      </select>
+                      <p className="text-[10px] text-slate-500 dark:text-slate-400">
+                        Quem executa a solicitação; não altera quem registra a aprovação.
+                      </p>
+                    </>
+                  ) : (
+                    <p className="text-xs font-semibold text-[#083181] dark:text-[#a0b900]">
+                      {request.assignee_name || 'Aguardando alocação'}
+                    </p>
+                  )}
                 </div>
                 <div className="flex justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 dark:text-slate-400">Horas Estimadas:</span>
@@ -405,7 +432,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                     <div className="flex items-center justify-between mb-2">
                       <div className="flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4 text-[#a0b900]" />
-                        <span className="text-xs font-bold text-slate-900 dark:text-white">{app.reviewer_name}</span>
+                        <span className="text-xs font-bold text-slate-900 dark:text-white">Parecer registrado por: {app.reviewer_name}</span>
                         <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded">
                           {app.decision.toUpperCase()}
                         </span>

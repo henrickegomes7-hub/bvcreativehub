@@ -246,6 +246,50 @@ requestsRouter.patch('/requests/:id/status', requireUser, requireAdmin, async (r
   }
 });
 
+requestsRouter.patch('/requests/:id/assignee', requireUser, requireAdmin, async (req, res) => {
+  const { id } = req.params;
+  const assigneeId = req.body?.assigneeId;
+  if (!validId(id) || (assigneeId !== null && (typeof assigneeId !== 'string' || !validId(assigneeId)))) {
+    res.status(400).json({ error: 'Responsável inválido.' });
+    return;
+  }
+  try {
+    const pool = getPool();
+    let assignee: { id: string; name: string } | null = null;
+    if (assigneeId !== null) {
+      const userResult = await pool.query<{ id: string; name: string }>(
+        'SELECT id, name FROM app_users WHERE id = $1',
+        [assigneeId],
+      );
+      assignee = userResult.rows[0] ?? null;
+      if (!assignee) {
+        res.status(400).json({ error: 'Selecione um usuário válido para executar a solicitação.' });
+        return;
+      }
+    }
+
+    const result = await pool.query(
+      `UPDATE creative_requests
+       SET data = data || jsonb_build_object(
+         'assignee_id', $2::text,
+         'assignee_name', $3::text,
+         'updated_at', NOW()
+       )
+       WHERE id = $1
+       RETURNING data`,
+      [id, assignee?.id ?? null, assignee?.name ?? null],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Solicitação não encontrada.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao atribuir responsável pela execução:', error);
+    res.status(503).json({ error: 'Não foi possível atualizar o responsável pela execução.' });
+  }
+});
+
 requestsRouter.post('/requests/:id/comments', requireUser, async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const content = req.body?.content;

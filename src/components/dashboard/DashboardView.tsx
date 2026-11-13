@@ -289,7 +289,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
                       {request.title}
                     </h4>
                     <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-0.5">
-                      Solicitante: {request.requester_name} • Responsável: {request.assignee_name || 'Não atribuído'}
+                      Solicitante: {request.requester_name} • Responsável pela execução: {request.assignee_name || 'Aguardando alocação'}
                     </p>
                   </div>
                 </div>

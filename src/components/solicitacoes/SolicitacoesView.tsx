@@ -169,7 +169,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                 <th className="py-3 px-4">Demanda & Briefing</th>
                 <th className="py-3 px-4">Departamento</th>
                 <th className="py-3 px-4">Formato</th>
-                <th className="py-3 px-4">Responsável</th>
+                <th className="py-3 px-4">Responsável pela execução</th>
                 <th className="py-3 px-4">Prioridade</th>
                 <th className="py-3 px-4">SLA / Prazo</th>
                 <th className="py-3 px-4">Status</th>
@@ -239,7 +239,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                             {req.assignee_name ? req.assignee_name.charAt(0) : '?'}
                           </div>
                           <span className="truncate max-w-[100px] text-[11px] text-slate-700 dark:text-slate-300">
-                            {req.assignee_name || 'Aguardando'}
+                            {req.assignee_name || 'Aguardando alocação'}
                           </span>
                         </div>
                       </td>

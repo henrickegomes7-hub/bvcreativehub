@@ -80,6 +80,11 @@ export const apiClient = {
       method: 'PATCH',
       body: JSON.stringify({ status }),
     }),
+  assignRequest: (id: string, assigneeId: string | null) =>
+    request<{ request: CreativeRequest }>(`/api/requests/${id}/assignee`, {
+      method: 'PATCH',
+      body: JSON.stringify({ assigneeId }),
+    }),
   addComment: (id: string, content: string) =>
     request<{ request: CreativeRequest }>(`/api/requests/${id}/comments`, {
       method: 'POST',

@@ -104,8 +104,8 @@ export interface CreativeRequest {
   department_id: string;
   requester_id: string;
   requester_name: string;
-  assignee_id?: string;
-  assignee_name?: string;
+  assignee_id?: string | null;
+  assignee_name?: string | null;
   priority: RequestPriority;
   status: RequestStatus;
   format: AssetFormat;
