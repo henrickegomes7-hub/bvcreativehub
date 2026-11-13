@@ -287,7 +287,12 @@ requestsRouter.post('/requests/:id/approvals', requireUser, requireAdmin, async 
   const { id } = req.params;
   const { decision, feedback, checklist } = req.body ?? {};
   if (!validId(id) || !['approved', 'approved_with_notes', 'changes_requested'].includes(decision)
-      || typeof feedback !== 'string' || !Array.isArray(checklist)) {
+      || typeof feedback !== 'string' || feedback.length > 5000
+      || !Array.isArray(checklist) || checklist.length > 50
+      || checklist.some((item: unknown) => !item || typeof item !== 'object'
+        || typeof (item as { item?: unknown }).item !== 'string'
+        || (item as { item: string }).item.length > 500
+        || typeof (item as { checked?: unknown }).checked !== 'boolean')) {
     res.status(400).json({ error: 'Parecer de aprovação inválido.' });
     return;
   }
@@ -295,28 +300,32 @@ requestsRouter.post('/requests/:id/approvals', requireUser, requireAdmin, async 
   try {
     const result = await getPool().query(
       `UPDATE creative_requests
-       SET data = jsonb_set(
-         jsonb_set(
-           data,
-           '{approvals}',
-           COALESCE(data->'approvals', '[]'::jsonb) || jsonb_build_array(
-             jsonb_build_object(
-               'id', $2,
-               'request_id', id::text,
-               'version_number', COALESCE((data->>'current_version')::int, 0),
-               'reviewer_id', $3,
-               'reviewer_name', $4,
-               'reviewer_role', 'admin',
-               'decision', $5,
-               'feedback', $6,
-               'checklist', $7::jsonb,
-               'created_at', NOW()
-             )
-           ),
-           true
+       SET data = data || jsonb_build_object(
+         'approvals',
+         (CASE
+           WHEN jsonb_typeof(data->'approvals') = 'array' THEN data->'approvals'
+           ELSE '[]'::jsonb
+         END) || jsonb_build_array(
+           jsonb_build_object(
+             'id', $2::text,
+             'request_id', $1::text,
+             'version_number', CASE
+               WHEN COALESCE(data->>'current_version', '') ~ '^[0-9]+$'
+                 THEN (data->>'current_version')::int
+               ELSE 0
+             END,
+             'reviewer_id', $3::text,
+             'reviewer_name', $4::text,
+             'reviewer_role', 'admin',
+             'decision', $5::text,
+             'feedback', $6::text,
+             'checklist', $7::jsonb,
+             'created_at', NOW()
+           )
          ),
-         '{status}', to_jsonb($8::text), true
-       ) || jsonb_build_object('updated_at', NOW())
+         'status', $8::text,
+         'updated_at', NOW()
+       )
        WHERE id = $1
        RETURNING data`,
       [id, randomBytes(12).toString('hex'), (req as AuthenticatedRequest).user?.id,
