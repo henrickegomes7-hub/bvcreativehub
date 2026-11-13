@@ -62,6 +62,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'MEU ESPAÇO',
       items: [
+        { id: 'dashboard' as NavTab, label: 'Meu Dashboard', icon: LayoutDashboard },
         { id: 'solicitacoes' as NavTab, label: 'Minhas Solicitações', icon: Layers },
       ],
     },

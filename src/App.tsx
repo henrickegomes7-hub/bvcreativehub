@@ -12,6 +12,7 @@ import {
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
 import { DashboardView } from './components/dashboard/DashboardView';
+import { CollaboratorDashboardView } from './components/dashboard/CollaboratorDashboardView';
 import { SolicitacoesView } from './components/solicitacoes/SolicitacoesView';
 import { KanbanView } from './components/kanban/KanbanView';
 import { AprovacoesView } from './components/aprovacoes/AprovacoesView';
@@ -131,7 +132,7 @@ export default function App() {
     try {
       await loadData(user);
       setAuthError(null);
-      setActiveTab(user.role === 'admin' ? 'dashboard' : 'solicitacoes');
+      setActiveTab('dashboard');
       setAuthStatus((status) => status ? { ...status, adminSetupRequired: false } : status);
     } catch (error) {
       setAuthError(error instanceof Error ? error.message : 'Não foi possível carregar os dados.');
@@ -286,7 +287,7 @@ export default function App() {
   }
 
   const isAdmin = currentUser.role === 'admin';
-  const visibleTab: NavTab = isAdmin ? activeTab : 'solicitacoes';
+  const visibleTab: NavTab = activeTab;
 
   const pendingApprovalsCount = requests.filter(
     (r) => r.status === 'client_approval' || r.status === 'review'
@@ -297,7 +298,7 @@ export default function App() {
   const selectedRequest = requests.find((r) => r.id === selectedRequestId) || null;
 
   const getTabTitle = (tab: NavTab) => {
-    if (!isAdmin) return 'Minhas Solicitações';
+    if (!isAdmin) return tab === 'dashboard' ? 'Meu Dashboard' : 'Minhas Solicitações';
     switch (tab) {
       case 'dashboard': return 'Dashboard de Criação';
       case 'solicitacoes': return 'Gerenciamento de Demandas';
@@ -359,7 +360,17 @@ export default function App() {
               />
             )}
 
-            {(!isAdmin || activeTab === 'solicitacoes') && (
+            {!isAdmin && activeTab === 'dashboard' && (
+              <CollaboratorDashboardView
+                requests={requests}
+                currentUser={currentUser}
+                onSelectRequest={(id) => setSelectedRequestId(id)}
+                onNavigateToRequests={() => setActiveTab('solicitacoes')}
+                onOpenNewRequest={handleOpenNewRequest}
+              />
+            )}
+
+            {activeTab === 'solicitacoes' && (
               <SolicitacoesView
                 requests={requests}
                 departments={departments}
