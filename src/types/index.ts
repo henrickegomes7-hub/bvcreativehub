@@ -129,6 +129,11 @@ export interface CreativeRequest {
   approvals: RequestApproval[];
 }
 
+export type CreativeRequestEditableFields = Pick<
+  CreativeRequest,
+  'title' | 'description' | 'department_id' | 'priority' | 'format' | 'deadline' | 'estimated_hours' | 'briefing' | 'tags'
+>;
+
 export interface BrandAsset {
   id: string;
   title: string;

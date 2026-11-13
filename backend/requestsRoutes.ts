@@ -101,6 +101,104 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
   }
 });
 
+requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  const body = req.body ?? {};
+  const allowedFormats = [
+    'social_feed', 'social_stories', 'carrossel', 'banner_web', 'motion',
+    'landing_page', 'ooh_print', 'ebook', 'email_marketing', 'branding',
+  ];
+  if (!req.user || req.user.role !== 'requester') {
+    res.status(403).json({ error: 'Somente colaboradores podem editar suas próprias solicitações.' });
+    return;
+  }
+  if (!validId(id)
+      || typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 255
+      || typeof body.description !== 'string' || !body.description.trim() || body.description.trim().length > 10_000
+      || typeof body.department_id !== 'string' || !body.department_id
+      || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
+      || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
+      || !allowedFormats.includes(body.format)
+      || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
+      || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
+      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)) {
+    res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
+    return;
+  }
+  try {
+    const pool = getPool();
+    const department = await pool.query('SELECT 1 FROM app_departments WHERE id = $1', [body.department_id]);
+    if (department.rowCount === 0) {
+      res.status(400).json({ error: 'Selecione um departamento válido.' });
+      return;
+    }
+    const result = await pool.query(
+      `UPDATE creative_requests
+       SET data = data || jsonb_build_object(
+         'title', $3::text,
+         'description', $4::text,
+         'department_id', $5::text,
+         'priority', $6::text,
+         'format', $7::text,
+         'deadline', $8::text,
+         'estimated_hours', $9::numeric,
+         'tags', $10::jsonb,
+         'briefing', $11::jsonb,
+         'updated_at', NOW()
+       )
+       WHERE id = $1 AND requester_id = $2
+       RETURNING data`,
+      [
+        id,
+        req.user.id,
+        body.title.trim(),
+        body.description.trim(),
+        body.department_id,
+        body.priority,
+        body.format,
+        new Date(body.deadline).toISOString(),
+        body.estimated_hours,
+        JSON.stringify(body.tags.slice(0, 30).map((tag: string) => tag.trim().slice(0, 100))),
+        JSON.stringify(body.briefing),
+      ],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Solicitação não encontrada ou sem permissão.' });
+      return;
+    }
+    res.json({ request: result.rows[0].data });
+  } catch (error) {
+    console.error('Erro ao editar demanda:', error);
+    res.status(503).json({ error: 'Não foi possível editar a solicitação.' });
+  }
+});
+
+requestsRouter.delete('/requests/:id', requireUser, async (req: AuthenticatedRequest, res) => {
+  const { id } = req.params;
+  if (!req.user || req.user.role !== 'requester') {
+    res.status(403).json({ error: 'Somente colaboradores podem excluir suas próprias solicitações.' });
+    return;
+  }
+  if (!validId(id)) {
+    res.status(400).json({ error: 'Solicitação inválida.' });
+    return;
+  }
+  try {
+    const result = await getPool().query(
+      'DELETE FROM creative_requests WHERE id = $1 AND requester_id = $2 RETURNING id',
+      [id, req.user.id],
+    );
+    if (!result.rows[0]) {
+      res.status(404).json({ error: 'Solicitação não encontrada ou sem permissão.' });
+      return;
+    }
+    res.status(204).end();
+  } catch (error) {
+    console.error('Erro ao excluir demanda:', error);
+    res.status(503).json({ error: 'Não foi possível excluir a solicitação.' });
+  }
+});
+
 requestsRouter.patch('/requests/:id/status', requireUser, requireAdmin, async (req, res) => {
   const { id } = req.params;
   const { status } = req.body ?? {};

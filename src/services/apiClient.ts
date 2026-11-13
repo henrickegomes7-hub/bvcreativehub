@@ -1,4 +1,4 @@
-import { CreativeRequest, UserProfile } from '../types';
+import { CreativeRequest, CreativeRequestEditableFields, UserProfile } from '../types';
 import { Department } from '../types';
 
 export interface AuthUser {
@@ -68,6 +68,13 @@ export const apiClient = {
     }),
   createRequest: (data: Omit<CreativeRequest, 'id' | 'code' | 'created_at' | 'updated_at' | 'current_version' | 'versions' | 'comments' | 'approvals'>) =>
     request<{ request: CreativeRequest }>('/api/requests', { method: 'POST', body: JSON.stringify(data) }),
+  updateRequest: (id: string, data: CreativeRequestEditableFields) =>
+    request<{ request: CreativeRequest }>(`/api/requests/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(data),
+    }),
+  deleteRequest: (id: string) =>
+    request<void>(`/api/requests/${id}`, { method: 'DELETE' }),
   updateStatus: (id: string, status: CreativeRequest['status']) =>
     request<{ request: CreativeRequest }>(`/api/requests/${id}/status`, {
       method: 'PATCH',

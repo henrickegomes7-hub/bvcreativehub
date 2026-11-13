@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { 
   CreativeRequest, 
+  CreativeRequestEditableFields,
   Department, 
   UserProfile, 
   NotificationItem, 
@@ -39,6 +40,7 @@ export default function App() {
   const [searchQuery, setSearchQuery] = useState('');
   const [selectedRequestId, setSelectedRequestId] = useState<string | null>(null);
   const [isNewRequestOpen, setIsNewRequestOpen] = useState(false);
+  const [editingRequestId, setEditingRequestId] = useState<string | null>(null);
 
   // Theme Management (Light / Dark)
   const [theme, setTheme] = useState<'light' | 'dark'>(() => {
@@ -174,6 +176,7 @@ export default function App() {
       setUsers([]);
       setSelectedRequestId(null);
       setIsNewRequestOpen(false);
+      setEditingRequestId(null);
       setAuthError(null);
       setActiveTab('solicitacoes');
     } catch (error) {
@@ -189,6 +192,38 @@ export default function App() {
     const { request } = await apiClient.createRequest(newReqData);
     setRequests((current) => [request, ...current]);
     setIsNewRequestOpen(false);
+  };
+
+  const handleUpdateRequest = async (id: string, data: CreativeRequestEditableFields) => {
+    const { request } = await apiClient.updateRequest(id, data);
+    updateRequest(request);
+    setEditingRequestId(null);
+  };
+
+  const handleEditRequest = (id: string) => {
+    setSelectedRequestId(null);
+    setIsNewRequestOpen(false);
+    setEditingRequestId(id);
+  };
+
+  const handleDeleteRequest = async (id: string) => {
+    const target = requests.find((request) => request.id === id);
+    if (!target || !window.confirm(`Deseja excluir a solicitação ${target.code}? Essa ação não poderá ser desfeita.`)) {
+      return;
+    }
+    try {
+      await apiClient.deleteRequest(id);
+      setRequests((current) => current.filter((request) => request.id !== id));
+      setSelectedRequestId((current) => current === id ? null : current);
+      setEditingRequestId((current) => current === id ? null : current);
+    } catch (error) {
+      alert(error instanceof Error ? error.message : 'Não foi possível excluir a solicitação.');
+    }
+  };
+
+  const handleOpenNewRequest = () => {
+    setEditingRequestId(null);
+    setIsNewRequestOpen(true);
   };
 
   const handleUpdateStatus = async (id: string, status: RequestStatus) => {
@@ -310,7 +345,7 @@ export default function App() {
           notifications={notifications}
           onMarkNotificationRead={handleMarkNotificationRead}
           onMarkAllNotificationsRead={handleMarkAllNotificationsRead}
-          onOpenNewRequest={() => setIsNewRequestOpen(true)}
+          onOpenNewRequest={handleOpenNewRequest}
           onSelectRequest={(id) => setSelectedRequestId(id)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
@@ -330,7 +365,7 @@ export default function App() {
                 currentUser={currentUser}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
-                onOpenNewRequest={() => setIsNewRequestOpen(true)}
+                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -338,8 +373,12 @@ export default function App() {
               <SolicitacoesView
                 requests={requests}
                 departments={departments}
+                currentUserId={currentUser.id}
+                isAdmin={isAdmin}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
-                onOpenNewRequest={() => setIsNewRequestOpen(true)}
+                onEditRequest={handleEditRequest}
+                onDeleteRequest={handleDeleteRequest}
+                onOpenNewRequest={handleOpenNewRequest}
                 searchQuery={searchQuery}
                 onSearchChange={setSearchQuery}
               />
@@ -352,7 +391,7 @@ export default function App() {
                 currentUser={currentUser}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
                 onUpdateStatus={handleUpdateStatus}
-                onOpenNewRequest={() => setIsNewRequestOpen(true)}
+                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -370,7 +409,7 @@ export default function App() {
                 requests={requests}
                 departments={departments}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
-                onOpenNewRequest={() => setIsNewRequestOpen(true)}
+                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -396,11 +435,16 @@ export default function App() {
 
       {/* New Request Modal */}
       <NovaDemandaModal
-        isOpen={isNewRequestOpen}
-        onClose={() => setIsNewRequestOpen(false)}
+        isOpen={isNewRequestOpen || Boolean(editingRequestId)}
+        onClose={() => {
+          setIsNewRequestOpen(false);
+          setEditingRequestId(null);
+        }}
         departments={departments}
         currentUser={currentUser}
+        request={requests.find((request) => request.id === editingRequestId) ?? null}
         onCreate={handleCreateRequest}
+        onUpdate={handleUpdateRequest}
       />
 
       {/* Demand Detail Modal */}

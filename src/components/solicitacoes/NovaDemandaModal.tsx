@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { Department, UserProfile, RequestPriority, AssetFormat, CreativeRequest } from '../../types';
+import React, { useEffect, useState } from 'react';
+import { Department, UserProfile, RequestPriority, AssetFormat, CreativeRequest, CreativeRequestEditableFields } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { requestGeminiDemandSuggestion } from '../../services/aiSuggestionService';
@@ -10,7 +10,16 @@ interface NovaDemandaModalProps {
   onClose: () => void;
   departments: Department[];
   currentUser: UserProfile;
+  request: CreativeRequest | null;
   onCreate: (data: Omit<CreativeRequest, 'id' | 'code' | 'created_at' | 'updated_at' | 'current_version' | 'versions' | 'comments' | 'approvals'>) => Promise<void>;
+  onUpdate: (id: string, data: CreativeRequestEditableFields) => Promise<void>;
+}
+
+function toLocalDateTime(value: string): string {
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return '';
+  const localDate = new Date(date.getTime() - date.getTimezoneOffset() * 60_000);
+  return localDate.toISOString().slice(0, 16);
 }
 
 export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
@@ -18,7 +27,9 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   onClose,
   departments,
   currentUser,
+  request,
   onCreate,
+  onUpdate,
 }) => {
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -40,6 +51,25 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   const [aiTopic, setAiTopic] = useState('');
   const [isAiLoading, setIsAiLoading] = useState(false);
   const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!isOpen) return;
+    setTitle(request?.title ?? '');
+    setDescription(request?.description ?? '');
+    setDepartmentId(request?.department_id ?? currentUser.department_id ?? departments[0]?.id ?? '');
+    setPriority(request?.priority ?? 'medium');
+    setFormat(request?.format ?? 'social_feed');
+    setDeadline(request ? toLocalDateTime(request.deadline) : '');
+    setEstimatedHours(request?.estimated_hours ?? 12);
+    setTargetAudience(request?.briefing.target_audience ?? '');
+    setKeyMessage(request?.briefing.key_message ?? '');
+    setCtaText(request?.briefing.cta_text ?? '');
+    setMandatoryElements(request?.briefing.mandatory_elements.join(', ') ?? 'Logotipo da marca, Informações obrigatórias da campanha');
+    setTags(request?.tags.join(', ') ?? 'Campanha, Digital');
+    setErrors({});
+    setAiTopic('');
+    setAiSuccessMessage(null);
+  }, [isOpen, request?.id]);
 
   const quickIdeas = [
     { label: '✈️ Plano Boa Viagem', topic: 'Campanha do PLANO BOA VIAGEM' },
@@ -114,30 +144,39 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
       return;
     }
 
+    const data: CreativeRequestEditableFields = {
+      title: title.trim(),
+      description: description.trim(),
+      department_id: departmentId,
+      priority,
+      format,
+      deadline: new Date(deadline).toISOString(),
+      estimated_hours: Number(estimatedHours) || 8,
+      tags: tags.split(',').map(t => t.trim()).filter(Boolean),
+      briefing: {
+        target_audience: targetAudience.trim() || 'Clientes e prospects do Grupo BV',
+        key_message: keyMessage.trim() || title.trim(),
+        cta_text: ctaText.trim() || 'Saiba mais no site oficial BV',
+        specs: request?.briefing.specs || `Formato ${format} com especificações do Grupo BV`,
+        mandatory_elements: mandatoryElements.split(',').map(e => e.trim()).filter(Boolean),
+        reference_links: request?.briefing.reference_links ?? [],
+        campaign_name: request?.briefing.campaign_name,
+      },
+    };
+
     try {
-      await onCreate({
-        title: title.trim(),
-        description: description.trim(),
-        department_id: departmentId,
-        requester_id: currentUser.id,
-        requester_name: currentUser.name,
-        priority,
-        status: 'backlog',
-        format,
-        deadline: new Date(deadline).toISOString(),
-        estimated_hours: Number(estimatedHours) || 8,
-        tags: tags.split(',').map(t => t.trim()).filter(Boolean),
-        briefing: {
-          target_audience: targetAudience.trim() || 'Clientes e prospects do Grupo BV',
-          key_message: keyMessage.trim() || title.trim(),
-          cta_text: ctaText.trim() || 'Saiba mais no site oficial BV',
-          specs: `Formato ${format} com especificações do Grupo BV`,
-          mandatory_elements: mandatoryElements.split(',').map(e => e.trim()).filter(Boolean),
-          reference_links: [],
-        },
-      });
+      if (request) {
+        await onUpdate(request.id, data);
+      } else {
+        await onCreate({
+          ...data,
+          requester_id: currentUser.id,
+          requester_name: currentUser.name,
+          status: 'backlog',
+        });
+      }
     } catch (error) {
-      setErrors({ form: error instanceof Error ? error.message : 'Não foi possível registrar a solicitação.' });
+      setErrors({ form: error instanceof Error ? error.message : `Não foi possível ${request ? 'editar' : 'registrar'} a solicitação.` });
       return;
     }
 
@@ -148,8 +187,8 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title="Nova Solicitação Criativa"
-      subtitle="Cadastre o briefing estruturado para a equipe de design do Grupo BV."
+      title={request ? 'Editar Solicitação Criativa' : 'Nova Solicitação Criativa'}
+      subtitle={request ? 'Atualize os dados e o briefing da sua solicitação.' : 'Cadastre o briefing estruturado para a equipe de design do Grupo BV.'}
       maxWidth="4xl"
     >
       <div className="space-y-5">
@@ -394,7 +433,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
               Cancelar
             </Button>
             <Button type="submit" variant="primary" icon={<Sparkles className="w-4 h-4" />}>
-              Cadastrar Solicitação
+              {request ? 'Salvar Alterações' : 'Cadastrar Solicitação'}
             </Button>
           </div>
         </form>
