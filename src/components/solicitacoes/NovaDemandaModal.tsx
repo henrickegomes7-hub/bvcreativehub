@@ -3,6 +3,7 @@ import { Department, UserProfile, RequestPriority, AssetFormat, CreativeRequest,
 import { FORMAT_CATEGORIES, normalizeAssetFormat, requiresCustomAssetSpecs } from '../../constants/assetFormats';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
+import { DateTimePicker } from '../ui/DateTimePicker';
 import { Send } from 'lucide-react';
 
 interface NovaDemandaModalProps {
@@ -254,16 +255,14 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
                 Prazo Final de Entrega (SLA) *
               </label>
-              <input
-                type="datetime-local"
+              <DateTimePicker
                 value={deadline}
-                onChange={(e) => {
-                  setDeadline(e.target.value);
-                  if (errors.deadline) setErrors(prev => ({ ...prev, deadline: '' }));
+                onChange={(value) => {
+                  setDeadline(value);
+                  if (errors.deadline) setErrors((previous) => ({ ...previous, deadline: '' }));
                 }}
-                className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
+                error={errors.deadline}
               />
-              {errors.deadline && <p className="text-xs text-rose-600 mt-1">{errors.deadline}</p>}
             </div>
           </div>
 
