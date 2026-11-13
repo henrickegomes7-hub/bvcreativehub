@@ -7,7 +7,6 @@ import { Button } from '../ui/Button';
 import { 
   Filter, 
   Search, 
-  Plus, 
   ArrowUpDown, 
   Eye, 
   Clock, 
@@ -162,9 +161,11 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
           <span className="text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
             Mostrando <strong>{filteredRequests.length}</strong> de {requests.length}
           </span>
-          <Button variant="primary" size="sm" onClick={onOpenNewRequest} icon={<Plus className="w-3.5 h-3.5" />}>
-            Nova
-          </Button>
+          {!isAdmin && (
+            <Button variant="primary" size="sm" onClick={onOpenNewRequest}>
+              Nova
+            </Button>
+          )}
         </div>
       </div>
 

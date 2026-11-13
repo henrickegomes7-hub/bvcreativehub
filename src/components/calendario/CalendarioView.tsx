@@ -2,21 +2,18 @@ import React, { useState } from 'react';
 import { CreativeRequest, Department } from '../../types';
 import { STATUS_COLORS, STATUS_LABELS } from '../../utils/workflow';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
 import { Calendar as CalendarIcon, ChevronLeft, ChevronRight, Clock, Layers } from 'lucide-react';
 
 interface CalendarioViewProps {
   requests: CreativeRequest[];
   departments: Department[];
   onSelectRequest: (id: string) => void;
-  onOpenNewRequest: () => void;
 }
 
 export const CalendarioView: React.FC<CalendarioViewProps> = ({
   requests,
   departments,
   onSelectRequest,
-  onOpenNewRequest,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
 
@@ -90,9 +87,6 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
             </button>
           </div>
 
-          <Button variant="primary" size="sm" onClick={onOpenNewRequest}>
-            Nova Demanda
-          </Button>
         </div>
       </div>
 

@@ -15,7 +15,6 @@ import {
   Layers, 
   TrendingUp, 
   ArrowUpRight, 
-  Sparkles,
   ChevronRight,
   ShieldCheck,
   Calendar
@@ -41,7 +40,6 @@ interface DashboardViewProps {
   currentUser: UserProfile;
   onSelectRequest: (id: string) => void;
   onNavigateToTab: (tab: 'solicitacoes' | 'kanban' | 'aprovacoes' | 'relatorios') => void;
-  onOpenNewRequest: () => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
@@ -50,7 +48,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
   currentUser,
   onSelectRequest,
   onNavigateToTab,
-  onOpenNewRequest,
 }) => {
   const metrics = calculateProductivityMetrics(
     requests,
@@ -105,15 +102,6 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
               className="bg-white/10 hover:bg-white/20 text-white border-white/25 backdrop-blur-xs"
             >
               Ver Kanban
-            </Button>
-            <Button
-              variant="accent"
-              size="sm"
-              onClick={onOpenNewRequest}
-              icon={<Sparkles className="w-4 h-4 text-[#e8dda5]" />}
-              className="bg-[#c56a2d] hover:bg-[#ad5922] text-white font-semibold shadow-md border border-[#c56a2d]"
-            >
-              Nova Demanda
             </Button>
           </div>
         </div>

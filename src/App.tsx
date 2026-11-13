@@ -221,6 +221,7 @@ export default function App() {
   };
 
   const handleOpenNewRequest = () => {
+    if (currentUser?.role !== 'requester') return;
     setEditingRequestId(null);
     setIsNewRequestOpen(true);
   };
@@ -355,7 +356,6 @@ export default function App() {
                 currentUser={currentUser}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
                 onNavigateToTab={(tab) => setActiveTab(tab)}
-                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -381,7 +381,6 @@ export default function App() {
                 currentUser={currentUser}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
                 onUpdateStatus={handleUpdateStatus}
-                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -399,7 +398,6 @@ export default function App() {
                 requests={requests}
                 departments={departments}
                 onSelectRequest={(id) => setSelectedRequestId(id)}
-                onOpenNewRequest={handleOpenNewRequest}
               />
             )}
 
@@ -425,7 +423,7 @@ export default function App() {
 
       {/* New Request Modal */}
       <NovaDemandaModal
-        isOpen={isNewRequestOpen || Boolean(editingRequestId)}
+        isOpen={currentUser.role === 'requester' && (isNewRequestOpen || Boolean(editingRequestId))}
         onClose={() => {
           setIsNewRequestOpen(false);
           setEditingRequestId(null);

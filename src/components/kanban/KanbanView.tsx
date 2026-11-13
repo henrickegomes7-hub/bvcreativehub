@@ -3,14 +3,12 @@ import { CreativeRequest, Department, RequestStatus, UserProfile } from '../../t
 import { STATUS_SEQUENCE, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, canTransition } from '../../utils/workflow';
 import { getSlaStatus } from '../../utils/sla';
 import { Badge } from '../ui/Badge';
-import { Button } from '../ui/Button';
 import { 
   ArrowRight, 
   ArrowLeft, 
-  Upload, 
+  Upload,
   MessageSquare, 
-  Clock, 
-  Plus, 
+  Clock,
   CheckCircle2, 
   AlertTriangle 
 } from 'lucide-react';
@@ -21,7 +19,6 @@ interface KanbanViewProps {
   currentUser: UserProfile;
   onSelectRequest: (id: string) => void;
   onUpdateStatus: (id: string, status: RequestStatus) => void;
-  onOpenNewRequest: () => void;
 }
 
 export const KanbanView: React.FC<KanbanViewProps> = ({
@@ -30,7 +27,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   currentUser,
   onSelectRequest,
   onUpdateStatus,
-  onOpenNewRequest,
 }) => {
   const [filterDept, setFilterDept] = useState<string>('all');
   const [filterPriority, setFilterPriority] = useState<string>('all');
@@ -90,9 +86,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           </select>
         </div>
 
-        <Button variant="primary" size="sm" onClick={onOpenNewRequest} icon={<Plus className="w-3.5 h-3.5" />}>
-          Nova Demanda
-        </Button>
       </div>
 
       {/* Kanban Board Horizontal Scroll */}

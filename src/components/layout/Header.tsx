@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { 
   Bell, 
   Search, 
-  Plus, 
   CheckCheck,
   AlertTriangle,
   Clock,
@@ -107,17 +106,15 @@ export const Header: React.FC<HeaderProps> = ({
           )}
         </button>
 
-        {/* Nova Solicitação Button */}
-        <Button
+        {!isAdmin && <Button
           variant="primary"
           size="sm"
           onClick={onOpenNewRequest}
-          icon={<Plus className="w-4 h-4" />}
           className="shadow-sm shadow-[#083181]/30"
           aria-label="Nova demanda"
         >
           <span className="hidden sm:inline">Nova Demanda</span>
-        </Button>
+        </Button>}
 
         {/* Notifications Popover */}
         {isAdmin && <div className="relative">

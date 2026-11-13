@@ -38,6 +38,10 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
     res.status(401).json({ error: 'Faça login para continuar.' });
     return;
   }
+  if (req.user.role !== 'requester') {
+    res.status(403).json({ error: 'Somente colaboradores podem abrir solicitações.' });
+    return;
+  }
   const body = req.body ?? {};
   if (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 255
       || typeof body.description !== 'string' || !body.description.trim() || body.description.trim().length > 10_000
