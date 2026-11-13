@@ -2,8 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Department, UserProfile, RequestPriority, AssetFormat, CreativeRequest, CreativeRequestEditableFields } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
-import { requestGeminiDemandSuggestion } from '../../services/aiSuggestionService';
-import { Sparkles, Calendar, Clock, AlertTriangle, Wand2, Check, RefreshCw } from 'lucide-react';
+import { Send } from 'lucide-react';
 
 interface NovaDemandaModalProps {
   isOpen: boolean;
@@ -49,11 +48,6 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   const [tags, setTags] = useState('Campanha, Digital');
   const [errors, setErrors] = useState<{ [key: string]: string }>({});
 
-  // Gemini AI Assistant State
-  const [aiTopic, setAiTopic] = useState('');
-  const [isAiLoading, setIsAiLoading] = useState(false);
-  const [aiSuccessMessage, setAiSuccessMessage] = useState<string | null>(null);
-
   useEffect(() => {
     if (!isOpen) return;
     setTitle(request?.title ?? '');
@@ -71,68 +65,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     setMandatoryElements(request?.briefing.mandatory_elements.join(', ') ?? 'Logotipo da marca, Informações obrigatórias da campanha');
     setTags(request?.tags.join(', ') ?? 'Campanha, Digital');
     setErrors({});
-    setAiTopic('');
-    setAiSuccessMessage(null);
   }, [isOpen, request?.id]);
-
-  const quickIdeas = [
-    { label: '✈️ Plano Boa Viagem', topic: 'Campanha do PLANO BOA VIAGEM' },
-    { label: '🌸 BV Flores', topic: 'Campanha de divulgação da BV FLORES' },
-    { label: '🎬 BV Play', topic: 'Campanha de conteúdo e entretenimento da BV PLAY' },
-    { label: '🐾 BV Pet', topic: 'Campanha de serviços e cuidados para animais da BV PET' },
-  ];
-
-  const handleAiSuggest = async (topicToUse?: string) => {
-    const text = topicToUse || aiTopic || title;
-    if (!text.trim()) {
-      alert('Digite uma ideia, tema ou título para a IA sugerir o briefing.');
-      return;
-    }
-
-    setIsAiLoading(true);
-    setAiSuccessMessage(null);
-
-    try {
-      const currentDept = departments.find(d => d.id === departmentId);
-      const suggestion = await requestGeminiDemandSuggestion(
-        text.trim(),
-        currentDept?.code,
-        format
-      );
-
-      // Preenche os campos automaticamente
-      setTitle(suggestion.title);
-      setDescription(suggestion.description);
-      setFormat(suggestion.format);
-      setPriority(suggestion.priority);
-      setEstimatedHours(suggestion.estimated_hours);
-      setTargetAudience(suggestion.target_audience);
-      setKeyMessage(suggestion.key_message);
-      setCtaText(suggestion.cta_text);
-      setMandatoryElements(suggestion.mandatory_elements.join(', '));
-      setTags(suggestion.tags.join(', '));
-
-      // Atualiza departamento se sugerido
-      if (suggestion.suggested_department_code) {
-        const matched = departments.find(d => d.code === suggestion.suggested_department_code);
-        if (matched) setDepartmentId(matched.id);
-      }
-
-      // Se não havia prazo, sugere 3 dias úteis adiante
-      if (!deadline) {
-        const autoDeadline = new Date(Date.now() + 72 * 60 * 60 * 1000);
-        setDeadline(autoDeadline.toISOString().slice(0, 16));
-      }
-
-      setAiSuccessMessage(`Briefing autocompletado com sucesso via Gemini API! (${suggestion.source || 'gemini-3.8-flash'})`);
-      setTimeout(() => setAiSuccessMessage(null), 6000);
-    } catch (e) {
-      console.error(e);
-      alert('Erro ao gerar sugestão via IA. Tente novamente.');
-    } finally {
-      setIsAiLoading(false);
-    }
-  };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -209,69 +142,6 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
       maxWidth="4xl"
     >
       <div className="space-y-5">
-        {/* Gemini AI Smart Briefing Suggestion Bar */}
-        <div className="p-4 rounded-xl bg-gradient-to-r from-blue-50 via-sky-50 to-amber-50 dark:from-[#083181]/25 dark:via-[#083181]/15 dark:to-[#c56a2d]/20 border border-blue-200/90 dark:border-blue-900/60 shadow-2xs">
-          <div className="flex items-center justify-between gap-2 mb-2">
-            <div className="flex items-center gap-1.5 text-xs font-bold text-[#083181] dark:text-blue-300">
-              <Sparkles className="w-4 h-4 text-[#c56a2d]" />
-              <span>Automação com Gemini API: Gerar Briefing Inteligente</span>
-            </div>
-            <span className="text-[10px] font-mono px-2 py-0.5 bg-blue-100 dark:bg-[#083181]/40 text-[#083181] dark:text-blue-300 rounded-full font-semibold">
-              gemini-3.8-flash
-            </span>
-          </div>
-
-          <p className="text-[11px] text-slate-600 dark:text-slate-400 mb-2.5">
-            Digite um tema resumido ou clique em uma das sugestões abaixo para preencher automaticamente título, formato ideal, departamento, CTA, público e elementos obrigatórios.
-          </p>
-
-          <div className="flex flex-col sm:flex-row gap-2 mb-2.5">
-            <input
-              type="text"
-              value={aiTopic}
-              onChange={(e) => setAiTopic(e.target.value)}
-              placeholder="Ex: Campanha para a BV Flores..."
-              className="flex-1 px-3 py-1.5 text-xs bg-white dark:bg-[#131F3D] border border-blue-200 dark:border-[#1F3057] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181] text-slate-800 dark:text-slate-100"
-            />
-            <Button
-              type="button"
-              variant="accent"
-              size="sm"
-              loading={isAiLoading}
-              onClick={() => handleAiSuggest()}
-              icon={<Wand2 className="w-3.5 h-3.5" />}
-              className="bg-[#c56a2d] hover:bg-[#ad5922] text-white"
-            >
-              Autocompletar com IA
-            </Button>
-          </div>
-
-          {/* Quick Idea Chips */}
-          <div className="flex items-center gap-1.5 flex-wrap">
-            <span className="text-[10px] font-semibold text-slate-500 dark:text-slate-400 mr-1">Exemplos rápidos:</span>
-            {quickIdeas.map((idea, idx) => (
-              <button
-                key={idx}
-                type="button"
-                onClick={() => {
-                  setAiTopic(idea.topic);
-                  handleAiSuggest(idea.topic);
-                }}
-                className="text-[10px] px-2 py-1 bg-white dark:bg-[#131F3D] hover:bg-blue-100/60 dark:hover:bg-[#1E293B] text-slate-700 dark:text-slate-300 hover:text-[#083181] dark:hover:text-blue-300 font-medium rounded-md border border-blue-200/80 dark:border-[#1F3057] transition-colors cursor-pointer"
-              >
-                {idea.label}
-              </button>
-            ))}
-          </div>
-
-          {aiSuccessMessage && (
-            <div className="mt-2 text-xs font-semibold text-blue-900 dark:text-blue-200 bg-blue-100/80 dark:bg-blue-950/60 p-2 rounded-lg flex items-center gap-1.5 animate-in fade-in">
-              <Check className="w-4 h-4 text-[#a0b900]" />
-              <span>{aiSuccessMessage}</span>
-            </div>
-          )}
-        </div>
-
         {/* Regular Form */}
         <form onSubmit={handleSubmit} className="space-y-4">
           {errors.form && <p role="alert" className="rounded-lg bg-rose-50 border border-rose-200 p-3 text-xs text-rose-700">{errors.form}</p>}
@@ -491,7 +361,7 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
             <Button type="button" variant="outline" onClick={onClose}>
               Cancelar
             </Button>
-            <Button type="submit" variant="primary" icon={<Sparkles className="w-4 h-4" />}>
+            <Button type="submit" variant="primary" icon={<Send className="w-4 h-4" />}>
               {request ? 'Salvar Alterações' : 'Cadastrar Solicitação'}
             </Button>
           </div>

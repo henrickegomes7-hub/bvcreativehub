@@ -4,14 +4,13 @@
 
 ## Visão geral
 
-O BV Creative Hub foi pensado para centralizar e otimizar o ciclo completo de demandas criativas do Grupo BV, desde a captação do briefing até aprovação, produção, revisão e acompanhamento final. A solução combina frontend em React, backend em Express, banco PostgreSQL e integração com IA para acelerar o trabalho criativo sem perder rigor operacional e segurança.
+O BV Creative Hub foi pensado para centralizar e otimizar o ciclo completo de demandas criativas do Grupo BV, desde a captação do briefing até aprovação, produção, revisão e acompanhamento final. A solução combina frontend em React, backend em Express e banco PostgreSQL.
 
 ## Destaques
 
 - Gestão de demandas criativas por departamento
 - Fluxo de aprovação e acompanhamento de produção
 - Autenticação segura com sessões, validações centralizadas e controle de acesso por perfil
-- Integração com Gemini para sugestão de briefings e demandas
 - Arquitetura modular e organizada por domínio para facilitar manutenção e escalabilidade
 - Estrutura pronta para evolução em ambiente de produção
 
@@ -21,7 +20,6 @@ O BV Creative Hub foi pensado para centralizar e otimizar o ciclo completo de de
 - Backend: Express + TypeScript
 - Banco de dados: PostgreSQL
 - Autenticação: sessões com cookie HttpOnly e validações centralizadas
-- IA: Gemini API
 - UI: Tailwind CSS
 - Testes: cobertura automatizada de autenticação e regras de acesso
 
@@ -73,7 +71,6 @@ Crie um arquivo `.env` com as variáveis essenciais do projeto, incluindo:
 - `DATABASE_URL`
 - `ADMIN_EMAIL`
 - `ADMIN_BOOTSTRAP_TOKEN`
-- `GEMINI_API_KEY`
 - credenciais do Gmail para reset de senha
 
 Importante: nunca versionar credenciais reais em repositórios públicos. Use variáveis de ambiente seguras em produção.
