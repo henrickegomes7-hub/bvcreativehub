@@ -329,6 +329,37 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
               </div>
             </div>
 
+            {(request.briefing.delivery_email || request.briefing.delivery_whatsapp) && (
+              <div className="rounded-xl border border-slate-200 dark:border-slate-800 bg-white dark:bg-[#0A1329] p-4">
+                <h4 className="text-xs font-bold text-[#083181] dark:text-[#e8dda5] uppercase tracking-wider mb-3">
+                  Contato para envio dos arquivos
+                </h4>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+                  {request.briefing.delivery_email && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">E-mail</span>
+                      <a className="font-medium text-[#083181] dark:text-blue-300 break-all" href={`mailto:${request.briefing.delivery_email}`}>
+                        {request.briefing.delivery_email}
+                      </a>
+                    </div>
+                  )}
+                  {request.briefing.delivery_whatsapp && (
+                    <div>
+                      <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">WhatsApp</span>
+                      <a
+                        className="font-medium text-[#083181] dark:text-blue-300"
+                        href={`https://wa.me/${request.briefing.delivery_whatsapp.replace(/\D/g, '')}`}
+                        target="_blank"
+                        rel="noreferrer"
+                      >
+                        {request.briefing.delivery_whatsapp}
+                      </a>
+                    </div>
+                  )}
+                </div>
+              </div>
+            )}
+
             {request.briefing.mandatory_elements && request.briefing.mandatory_elements.length > 0 && (
               <div>
                 <h4 className="text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-2">

@@ -42,6 +42,8 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   // Briefing Fields
   const [targetAudience, setTargetAudience] = useState('');
   const [keyMessage, setKeyMessage] = useState('');
+  const [deliveryEmail, setDeliveryEmail] = useState('');
+  const [deliveryWhatsapp, setDeliveryWhatsapp] = useState('');
   const [ctaText, setCtaText] = useState('');
   const [mandatoryElements, setMandatoryElements] = useState('Logotipo da marca, Informações obrigatórias da campanha');
   const [tags, setTags] = useState('Campanha, Digital');
@@ -63,6 +65,8 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     setEstimatedHours(request?.estimated_hours ?? 12);
     setTargetAudience(request?.briefing.target_audience ?? '');
     setKeyMessage(request?.briefing.key_message ?? '');
+    setDeliveryEmail(request?.briefing.delivery_email ?? '');
+    setDeliveryWhatsapp(request?.briefing.delivery_whatsapp ?? '');
     setCtaText(request?.briefing.cta_text ?? '');
     setMandatoryElements(request?.briefing.mandatory_elements.join(', ') ?? 'Logotipo da marca, Informações obrigatórias da campanha');
     setTags(request?.tags.join(', ') ?? 'Campanha, Digital');
@@ -138,6 +142,17 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     if (!description.trim()) newErrors.description = 'A descrição do objetivo é obrigatória.';
     if (!deadline) newErrors.deadline = 'O prazo de entrega é obrigatório.';
     if (!departmentId) newErrors.departmentId = 'Selecione o departamento solicitante.';
+    if (deliveryEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryEmail.trim())) {
+      newErrors.deliveryEmail = 'Informe um e-mail válido.';
+    }
+    const whatsappDigits = deliveryWhatsapp.replace(/\D/g, '');
+    if (deliveryWhatsapp.trim() && (
+      !/^\+?[\d\s().-]+$/.test(deliveryWhatsapp.trim())
+      || whatsappDigits.length < 10
+      || whatsappDigits.length > 15
+    )) {
+      newErrors.deliveryWhatsapp = 'Informe um número de WhatsApp válido com DDD.';
+    }
 
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
@@ -156,6 +171,8 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
       briefing: {
         target_audience: targetAudience.trim() || 'Clientes e prospects do Grupo BV',
         key_message: keyMessage.trim() || title.trim(),
+        delivery_email: deliveryEmail.trim(),
+        delivery_whatsapp: deliveryWhatsapp.trim(),
         cta_text: ctaText.trim() || 'Saiba mais no site oficial BV',
         specs: request?.briefing.specs || `Formato ${format} com especificações do Grupo BV`,
         mandatory_elements: mandatoryElements.split(',').map(e => e.trim()).filter(Boolean),
@@ -422,6 +439,48 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
                     placeholder="Ex: Campanha, lançamento, sazonal"
                     className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
                   />
+                </div>
+              </div>
+
+              <div className="rounded-lg border border-slate-200 dark:border-slate-800 p-3">
+                <h5 className="text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                  Contato para envio dos arquivos
+                </h5>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      E-mail para envio
+                    </label>
+                    <input
+                      type="email"
+                      value={deliveryEmail}
+                      onChange={(e) => {
+                        setDeliveryEmail(e.target.value);
+                        if (errors.deliveryEmail) setErrors((prev) => ({ ...prev, deliveryEmail: '' }));
+                      }}
+                      placeholder="nome@empresa.com"
+                      maxLength={254}
+                      className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181]"
+                    />
+                    {errors.deliveryEmail && <p className="text-xs text-rose-600 mt-1">{errors.deliveryEmail}</p>}
+                  </div>
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      WhatsApp para envio
+                    </label>
+                    <input
+                      type="tel"
+                      value={deliveryWhatsapp}
+                      onChange={(e) => {
+                        setDeliveryWhatsapp(e.target.value);
+                        if (errors.deliveryWhatsapp) setErrors((prev) => ({ ...prev, deliveryWhatsapp: '' }));
+                      }}
+                      placeholder="(11) 99999-9999"
+                      maxLength={20}
+                      className="w-full px-3.5 py-1.5 text-xs bg-slate-50 dark:bg-[#0A1329] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181]"
+                    />
+                    {errors.deliveryWhatsapp && <p className="text-xs text-rose-600 mt-1">{errors.deliveryWhatsapp}</p>}
+                  </div>
                 </div>
               </div>
             </div>

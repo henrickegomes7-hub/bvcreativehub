@@ -9,6 +9,18 @@ function validId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 }
 
+function validDeliveryContacts(briefing: Record<string, unknown>): boolean {
+  const email = briefing.delivery_email;
+  const whatsapp = briefing.delivery_whatsapp;
+  const whatsappDigits = typeof whatsapp === 'string' ? whatsapp.replace(/\D/g, '') : '';
+  return (email === undefined || email === '' || (
+    typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+  )) && (whatsapp === undefined || whatsapp === '' || (
+    typeof whatsapp === 'string' && whatsapp.length <= 20 && /^\+?[\d\s().-]+$/.test(whatsapp)
+    && whatsappDigits.length >= 10 && whatsappDigits.length <= 15
+  ));
+}
+
 requestsRouter.get('/requests', requireUser, async (req: AuthenticatedRequest, res) => {
   try {
     const result = req.user?.role === 'admin'
@@ -35,7 +47,8 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
       || !['social_feed', 'social_stories', 'carrossel', 'banner_web', 'motion', 'landing_page', 'ooh_print', 'ebook', 'email_marketing', 'branding'].includes(body.format)
       || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
       || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
-      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)) {
+      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
+      || !validDeliveryContacts(body.briefing)) {
     res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
     return;
   }
@@ -121,7 +134,8 @@ requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequ
       || !allowedFormats.includes(body.format)
       || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
       || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
-      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)) {
+      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
+      || !validDeliveryContacts(body.briefing)) {
     res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
     return;
   }

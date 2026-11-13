@@ -49,6 +49,8 @@ export type AssetFormat =
 export interface BriefingDetails {
   target_audience: string;
   key_message: string;
+  delivery_email?: string;
+  delivery_whatsapp?: string;
   cta_text?: string;
   specs: string;
   mandatory_elements: string[];
