@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CreativeRequest, Department, RequestPriority, RequestStatus, AssetFormat } from '../../types';
+import { normalizeAssetFormat } from '../../constants/assetFormats';
 import { getSlaStatus } from '../../utils/sla';
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS } from '../../utils/workflow';
 import { Badge } from '../ui/Badge';
@@ -74,18 +75,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
   });
 
   const getFormatLabel = (fmt: AssetFormat) => {
-    switch (fmt) {
-      case 'social_feed': return 'Feed Instagram';
-      case 'social_stories': return 'Stories/Reels';
-      case 'carrossel': return 'Carrossel';
-      case 'banner_web': return 'Banner Display';
-      case 'motion': return 'Motion Vídeo';
-      case 'landing_page': return 'Landing Page';
-      case 'ooh_print': return 'OOH / Print';
-      case 'ebook': return 'E-book PDF';
-      case 'branding': return 'Branding';
-      default: return fmt;
-    }
+    return normalizeAssetFormat(fmt);
   };
 
   const canManageRequest = (request: CreativeRequest) =>

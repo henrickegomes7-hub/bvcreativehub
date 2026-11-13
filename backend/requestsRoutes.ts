@@ -2,6 +2,7 @@ import { randomBytes, randomUUID } from 'node:crypto';
 import { Router } from 'express';
 import { requireAdmin, requireUser, type AuthenticatedRequest } from './auth.js';
 import { getPool } from './database.js';
+import { isAssetFormat, requiresCustomAssetSpecs } from '../src/constants/assetFormats.js';
 
 export const requestsRouter = Router();
 
@@ -48,11 +49,13 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
       || typeof body.department_id !== 'string' || !body.department_id
       || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
       || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
-      || !['social_feed', 'social_stories', 'carrossel', 'banner_web', 'motion', 'landing_page', 'ooh_print', 'ebook', 'email_marketing', 'branding'].includes(body.format)
+      || !isAssetFormat(body.format)
       || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
       || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
       || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
-      || !validDeliveryContacts(body.briefing)) {
+      || !validDeliveryContacts(body.briefing)
+      || (requiresCustomAssetSpecs(body.format)
+        && (typeof body.briefing.specs !== 'string' || !body.briefing.specs.trim() || body.briefing.specs.length > 2000))) {
     res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
     return;
   }
@@ -121,10 +124,6 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
 requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequest, res) => {
   const { id } = req.params;
   const body = req.body ?? {};
-  const allowedFormats = [
-    'social_feed', 'social_stories', 'carrossel', 'banner_web', 'motion',
-    'landing_page', 'ooh_print', 'ebook', 'email_marketing', 'branding',
-  ];
   if (!req.user || req.user.role !== 'requester') {
     res.status(403).json({ error: 'Somente colaboradores podem editar suas próprias solicitações.' });
     return;
@@ -135,11 +134,13 @@ requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequ
       || typeof body.department_id !== 'string' || !body.department_id
       || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
       || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
-      || !allowedFormats.includes(body.format)
+      || !isAssetFormat(body.format)
       || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
       || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
       || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
-      || !validDeliveryContacts(body.briefing)) {
+      || !validDeliveryContacts(body.briefing)
+      || (requiresCustomAssetSpecs(body.format)
+        && (typeof body.briefing.specs !== 'string' || !body.briefing.specs.trim() || body.briefing.specs.length > 2000))) {
     res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
     return;
   }

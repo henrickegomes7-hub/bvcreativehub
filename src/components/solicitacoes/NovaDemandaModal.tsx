@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Department, UserProfile, RequestPriority, AssetFormat, CreativeRequest, CreativeRequestEditableFields } from '../../types';
+import { FORMAT_CATEGORIES, normalizeAssetFormat, requiresCustomAssetSpecs } from '../../constants/assetFormats';
 import { Modal } from '../ui/Modal';
 import { Button } from '../ui/Button';
 import { Send } from 'lucide-react';
@@ -34,7 +35,8 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
   const [description, setDescription] = useState('');
   const [departmentId, setDepartmentId] = useState(currentUser.department_id || departments[0]?.id || '');
   const [priority, setPriority] = useState<RequestPriority>('medium');
-  const [format, setFormat] = useState<AssetFormat>('social_feed');
+  const [format, setFormat] = useState<AssetFormat>(normalizeAssetFormat('social_feed'));
+  const [customFormatSpecs, setCustomFormatSpecs] = useState('');
   const [deadline, setDeadline] = useState('');
   const [estimatedHours, setEstimatedHours] = useState(12);
 
@@ -54,7 +56,9 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     setDescription(request?.description ?? '');
     setDepartmentId(request?.department_id ?? currentUser.department_id ?? departments[0]?.id ?? '');
     setPriority(request?.priority ?? 'medium');
-    setFormat(request?.format ?? 'social_feed');
+    const requestFormat = normalizeAssetFormat(request?.format ?? 'social_feed');
+    setFormat(requestFormat);
+    setCustomFormatSpecs(request && requiresCustomAssetSpecs(requestFormat) ? request.briefing.specs : '');
     setDeadline(request ? toLocalDateTime(request.deadline) : '');
     setEstimatedHours(request?.estimated_hours ?? 12);
     setTargetAudience(request?.briefing.target_audience ?? '');
@@ -75,6 +79,9 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
     if (!description.trim()) newErrors.description = 'A descrição do objetivo é obrigatória.';
     if (!deadline) newErrors.deadline = 'O prazo de entrega é obrigatório.';
     if (!departmentId) newErrors.departmentId = 'Selecione o departamento solicitante.';
+    if (requiresCustomAssetSpecs(format) && !customFormatSpecs.trim()) {
+      newErrors.customFormatSpecs = 'Informe as dimensões e especificações do formato personalizado.';
+    }
     if (deliveryEmail.trim() && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(deliveryEmail.trim())) {
       newErrors.deliveryEmail = 'Informe um e-mail válido.';
     }
@@ -107,7 +114,9 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
         delivery_email: deliveryEmail.trim(),
         delivery_whatsapp: deliveryWhatsapp.trim(),
         cta_text: ctaText.trim() || 'Saiba mais no site oficial BV',
-        specs: request?.briefing.specs || `Formato ${format} com especificações do Grupo BV`,
+        specs: requiresCustomAssetSpecs(format)
+          ? customFormatSpecs.trim()
+          : request?.briefing.specs || `Formato ${format} com especificações do Grupo BV`,
         mandatory_elements: mandatoryElements.split(',').map(e => e.trim()).filter(Boolean),
         reference_links: request?.briefing.reference_links ?? [],
         campaign_name: request?.briefing.campaign_name,
@@ -186,20 +195,44 @@ export const NovaDemandaModal: React.FC<NovaDemandaModalProps> = ({
               </label>
               <select
                 value={format}
-                onChange={(e) => setFormat(e.target.value as AssetFormat)}
+                onChange={(e) => {
+                  setFormat(e.target.value as AssetFormat);
+                  setErrors((previous) => ({ ...previous, customFormatSpecs: '' }));
+                }}
                 className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-[#131F3D] border border-slate-300 dark:border-[#1F3057] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181] text-slate-800 dark:text-slate-100"
               >
-                <option value="social_feed">Post Instagram Feed (1080x1350 4:5)</option>
-                <option value="social_stories">Stories & Reels Vertical (1080x1920 9:16)</option>
-                <option value="carrossel">Carrossel Educativo Multi-Telas</option>
-                <option value="banner_web">Banners Google Ads / Display</option>
-                <option value="motion">Vídeo Motion Graphic / Animação</option>
-                <option value="landing_page">Design de Landing Page / UI Kit</option>
-                <option value="ooh_print">OOH, Outdoors & Painéis de LED</option>
-                <option value="ebook">E-book Executivo / Diagramação PDF</option>
-                <option value="branding">Identidade Visual & Brindes</option>
+                {FORMAT_CATEGORIES.map((category) => (
+                  <optgroup key={category.label} label={category.label}>
+                    {category.options.map((option) => (
+                      <option key={`${category.label}-${option}`} value={option}>{option}</option>
+                    ))}
+                  </optgroup>
+                ))}
               </select>
             </div>
+
+            {requiresCustomAssetSpecs(format) && (
+              <div className="md:col-span-2">
+                <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">
+                  Dimensões e Especificações do Formato *
+                </label>
+                <textarea
+                  rows={3}
+                  required
+                  value={customFormatSpecs}
+                  onChange={(event) => {
+                    setCustomFormatSpecs(event.target.value);
+                    if (errors.customFormatSpecs) {
+                      setErrors((previous) => ({ ...previous, customFormatSpecs: '' }));
+                    }
+                  }}
+                  maxLength={2000}
+                  placeholder="Informe dimensões, orientação, resolução e outras especificações necessárias."
+                  className="w-full px-3.5 py-2 text-sm bg-slate-50 dark:bg-[#131F3D] border border-slate-300 dark:border-[#1F3057] rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181] text-slate-800 dark:text-slate-100"
+                />
+                {errors.customFormatSpecs && <p className="text-xs text-rose-600 mt-1">{errors.customFormatSpecs}</p>}
+              </div>
+            )}
 
             <div>
               <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 uppercase tracking-wider mb-1">

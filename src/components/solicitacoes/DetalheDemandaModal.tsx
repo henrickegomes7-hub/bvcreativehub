@@ -239,6 +239,16 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                 <h4 className="text-xs font-bold text-[#083181] dark:text-[#e8dda5] uppercase tracking-wider">
                   Especificações & Prazos
                 </h4>
+                {request.briefing.specs && (
+                  <div>
+                    <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
+                      Dimensões e Especificações do Formato
+                    </span>
+                    <p className="text-xs text-slate-800 dark:text-slate-200 font-medium whitespace-pre-wrap">
+                      {request.briefing.specs}
+                    </p>
+                  </div>
+                )}
                 <div className="flex justify-between text-xs py-1 border-b border-slate-100 dark:border-slate-800">
                   <span className="text-slate-500 dark:text-slate-400">Solicitante:</span>
                   <span className="font-semibold text-slate-800 dark:text-slate-200">{request.requester_name}</span>

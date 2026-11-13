@@ -1,3 +1,6 @@
+import type { AssetFormat } from '../constants/assetFormats';
+export type { AssetFormat } from '../constants/assetFormats';
+
 export type UserRole = 
   | 'requester'           // Solicitante (Área de negócio do Grupo BV)
   | 'designer'            // Designer Gráfico / Motion Designer
@@ -33,18 +36,6 @@ export type RequestStatus =
   | 'review'            // Em Revisão Criativa / QA
   | 'client_approval'   // Em Aprovação do Solicitante
   | 'approved';         // Concluído / Aprovado
-
-export type AssetFormat = 
-  | 'social_feed'
-  | 'social_stories'
-  | 'carrossel'
-  | 'banner_web'
-  | 'motion'
-  | 'landing_page'
-  | 'ooh_print'
-  | 'ebook'
-  | 'email_marketing'
-  | 'branding';
 
 export interface BriefingDetails {
   target_audience: string;

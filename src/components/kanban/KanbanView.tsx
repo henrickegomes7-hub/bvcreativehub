@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { CreativeRequest, Department, RequestStatus, UserProfile } from '../../types';
+import { normalizeAssetFormat } from '../../constants/assetFormats';
 import { STATUS_SEQUENCE, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, canTransition } from '../../utils/workflow';
 import { getSlaStatus } from '../../utils/sla';
 import { Badge } from '../ui/Badge';
@@ -157,7 +158,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                             {dept?.code || 'BV'}
                           </span>
                           <span className="text-slate-500 dark:text-slate-400 bg-slate-100 dark:bg-slate-800 px-1.5 py-0.5 rounded font-medium">
-                            {req.format.replace('_', ' ')}
+                            {normalizeAssetFormat(req.format)}
                           </span>
                         </div>
 
