@@ -11,12 +11,9 @@ import { Button } from '../ui/Button';
 import { getSlaStatus } from '../../utils/sla';
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, canTransition } from '../../utils/workflow';
 import { 
-  Upload, 
   CheckCircle2, 
   MessageSquare, 
-  FileText, 
-  Layers, 
-  Download, 
+  FileText,
   Send,
   ShieldCheck
 } from 'lucide-react';
@@ -28,19 +25,6 @@ interface DetalheDemandaModalProps {
   currentUser: UserProfile;
   isAdmin: boolean;
   onUpdateStatus: (id: string, status: RequestStatus) => void;
-  onAddVersion: (requestId: string, versionData: {
-    file_name: string;
-    file_url: string;
-    file_size: string;
-    file_type: string;
-    preview_url: string;
-    changelog: string;
-    created_by: string;
-    created_by_name: string;
-    dimensions?: string;
-    resolution_dpi?: number;
-    color_profile?: 'RGB' | 'CMYK';
-  }) => void;
   onAddComment: (requestId: string, commentData: {
     user_id: string;
     user_name: string;
@@ -68,16 +52,10 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
   currentUser,
   isAdmin,
   onUpdateStatus,
-  onAddVersion,
   onAddComment,
   onSubmitApproval,
 }) => {
-  const [activeTab, setActiveTab] = useState<'briefing' | 'versions' | 'comments' | 'approval'>('briefing');
-
-  // New Version Form State
-  const [fileName, setFileName] = useState('');
-  const [changelog, setChangelog] = useState('');
-  const [dimensions, setDimensions] = useState('1080x1350 px');
+  const [activeTab, setActiveTab] = useState<'briefing' | 'comments' | 'approval'>('briefing');
 
   // New Comment Form State
   const [commentText, setCommentText] = useState('');
@@ -96,30 +74,6 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
   if (!request) return null;
 
   const sla = getSlaStatus(request.deadline, request.status === 'approved');
-  const hasVersion = request.versions && request.versions.length > 0;
-
-  const handleCreateVersion = (e: React.FormEvent) => {
-    e.preventDefault();
-    const finalName = fileName.trim() || `BV_${request.code}_V${(request.current_version || 0) + 1}`;
-
-    onAddVersion(request.id, {
-      file_name: finalName,
-      file_url: '',
-      file_size: '',
-      file_type: 'application/octet-stream',
-      preview_url: '',
-      changelog: changelog.trim() || 'Nova versão com refinamentos visuais.',
-      created_by: currentUser.id,
-      created_by_name: currentUser.name,
-      dimensions: dimensions,
-      resolution_dpi: 72,
-      color_profile: 'RGB',
-    });
-    setFileName('');
-    setFileName('');
-    setChangelog('');
-    setActiveTab('versions');
-  };
 
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -190,7 +144,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                 value={request.status}
                 onChange={(e) => {
                   const target = e.target.value as RequestStatus;
-                  const check = canTransition(request.status, target, hasVersion, currentUser.role);
+                  const check = canTransition(request.status, target, currentUser.role);
                   if (!check.allowed) {
                     alert(check.reason);
                     return;
@@ -221,18 +175,6 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
           >
             <FileText className="w-3.5 h-3.5" />
             Briefing & Specs
-          </button>
-
-          <button
-            onClick={() => setActiveTab('versions')}
-            className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-all ${
-              activeTab === 'versions'
-                ? 'border-[#083181] text-[#083181] dark:border-[#a0b900] dark:text-[#e8dda5]'
-                : 'border-transparent text-slate-500 dark:text-slate-400 hover:text-slate-800 dark:hover:text-slate-200'
-            }`}
-          >
-            <Layers className="w-3.5 h-3.5" />
-            Versões & Arquivos ({request.versions.length})
           </button>
 
           <button
@@ -363,147 +305,6 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                 </div>
               </div>
             )}
-          </div>
-        )}
-
-        {/* Tab 2: Version history and external delivery record */}
-        {activeTab === 'versions' && (
-          <div className="space-y-6">
-            {/* Version List */}
-            {request.versions.length === 0 ? (
-              <div className="p-8 text-center bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
-                <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nenhuma versão registrada ainda.</p>
-                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  O envio do arquivo é feito fora do sistema, por WhatsApp ou e-mail.
-                </p>
-              </div>
-            ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {request.versions.map((ver) => (
-                  <div key={ver.id} className="border border-slate-200 dark:border-slate-800 rounded-xl overflow-hidden bg-white dark:bg-[#0A1329] shadow-xs">
-                    <div className="relative aspect-video bg-slate-100 dark:bg-slate-800 flex items-center justify-center overflow-hidden group">
-                      {ver.preview_url ? (
-                        <img
-                          src={ver.preview_url}
-                          alt={ver.file_name}
-                          className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-300"
-                        />
-                      ) : (
-                        <div className="flex flex-col items-center gap-2 text-slate-500 dark:text-slate-400">
-                          <FileText className="w-10 h-10" />
-                          <span className="max-w-[80%] truncate text-xs">{ver.file_name}</span>
-                        </div>
-                      )}
-                      <span className="absolute top-2 left-2 px-2 py-0.5 bg-[#083181] text-white text-[11px] font-bold rounded-md shadow-xs">
-                        Versão V{ver.version_number}
-                      </span>
-                      {ver.file_url ? (
-                        <a
-                          href={ver.file_url}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="absolute bottom-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-md text-xs flex items-center gap-1 backdrop-blur-xs"
-                        >
-                          <Download className="w-3.5 h-3.5" /> Baixar
-                        </a>
-                      ) : (
-                        <span className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 text-white rounded-md text-[10px] backdrop-blur-xs">
-                          Envio externo
-                        </span>
-                      )}
-                    </div>
-
-                    <div className="p-4 space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-xs font-bold text-slate-900 dark:text-white truncate max-w-[200px]" title={ver.file_name}>
-                          {ver.file_name}
-                        </span>
-                        <span className="text-[11px] font-mono text-slate-500 dark:text-slate-400">{ver.file_size}</span>
-                      </div>
-
-                      <p className="text-xs text-slate-600 dark:text-slate-300 bg-slate-50 dark:bg-[#0E172E] p-2 rounded-lg">
-                        <strong>Changelog:</strong> {ver.changelog}
-                      </p>
-
-                      <div className="flex items-center justify-between text-[11px] text-slate-500 dark:text-slate-400 pt-1">
-                        <span>Autor: {ver.created_by_name}</span>
-                        <span>{new Date(ver.created_at).toLocaleDateString('pt-BR')}</span>
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            )}
-
-            {/* Register a version that was sent externally */}
-            {isAdmin && <div className="p-5 bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-slate-200 dark:border-slate-800">
-              <div className="flex items-center gap-2 mb-3">
-                <Upload className="w-4 h-4 text-[#083181] dark:text-[#a0b900]" />
-                <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
-                  Registrar Versão Enviada (V{(request.current_version || 0) + 1})
-                </h4>
-              </div>
-
-              <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
-                Esta área é apenas informativa: o sistema não envia nem armazena arquivos. Envie a versão diretamente ao solicitante por WhatsApp ou e-mail e use o formulário abaixo para registrar o envio.
-                {(request.briefing.delivery_email || request.briefing.delivery_whatsapp) && (
-                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-semibold">
-                    {request.briefing.delivery_email && <span>E-mail: {request.briefing.delivery_email}</span>}
-                    {request.briefing.delivery_whatsapp && <span>WhatsApp: {request.briefing.delivery_whatsapp}</span>}
-                  </div>
-                )}
-              </div>
-
-              <form onSubmit={handleCreateVersion} className="space-y-3">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Nome do Arquivo
-                    </label>
-                    <input
-                      type="text"
-                      value={fileName}
-                      onChange={(e) => setFileName(e.target.value)}
-                      placeholder={`BV_${request.code}_V${(request.current_version || 0) + 1}.png`}
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                      Dimensões
-                    </label>
-                    <input
-                      type="text"
-                      value={dimensions}
-                      onChange={(e) => setDimensions(e.target.value)}
-                      placeholder="1080x1350 px"
-                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Changelog / O que mudou nesta versão? *
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={changelog}
-                    onChange={(e) => setChangelog(e.target.value)}
-                    placeholder="Descreva as alterações aplicadas (ex: Ajustado contraste do logotipo e disclaimer BACEN)..."
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
-                  />
-                </div>
-
-                <div className="flex justify-end pt-2">
-                  <Button type="submit" variant="primary" size="sm" icon={<Upload className="w-3.5 h-3.5" />}>
-                    Registrar Versão V{(request.current_version || 0) + 1}
-                  </Button>
-                </div>
-              </form>
-            </div>}
           </div>
         )}
 

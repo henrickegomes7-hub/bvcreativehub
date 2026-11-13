@@ -39,24 +39,15 @@ export const PRIORITY_COLORS: Record<RequestPriority, { bg: string; text: string
 };
 
 /**
- * Checks whether a status transition is permitted given current version state and role permissions.
+ * Checks whether a status transition is permitted for the user's role.
  */
 export function canTransition(
   current: RequestStatus,
   target: RequestStatus,
-  hasVersion: boolean,
   role: UserRole
 ): { allowed: boolean; reason?: string } {
   if (current === target) {
     return { allowed: true };
-  }
-
-  // Moving to review or client approval requires at least one uploaded version/material
-  if ((target === 'review' || target === 'client_approval' || target === 'approved') && !hasVersion) {
-    return {
-      allowed: false,
-      reason: 'É necessário anexar ao menos uma versão do arquivo gráfico para avançar.',
-    };
   }
 
   // Admin and Creative Manager have global bypass

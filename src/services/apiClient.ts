@@ -85,11 +85,6 @@ export const apiClient = {
       method: 'POST',
       body: JSON.stringify({ content }),
     }),
-  addVersion: (id: string, version: object) =>
-    request<{ request: CreativeRequest }>(`/api/requests/${id}/versions`, {
-      method: 'POST',
-      body: JSON.stringify(version),
-    }),
   submitApproval: (id: string, approval: { decision: string; feedback: string; checklist: { item: string; checked: boolean }[] }) =>
     request<{ request: CreativeRequest }>(`/api/requests/${id}/approvals`, {
       method: 'POST',

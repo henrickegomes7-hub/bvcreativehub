@@ -3,24 +3,18 @@ import assert from 'node:assert/strict';
 import { canTransition, calculateProductivityMetrics } from './workflow';
 import { CreativeRequest } from '../types';
 
-test('cannot transition to review without an uploaded asset version', () => {
-  const result = canTransition('in_progress', 'review', false, 'designer');
-  assert.equal(result.allowed, false);
-  assert.ok(result.reason?.includes('necessário anexar'));
-});
-
-test('designer can move from in_progress to review once asset is attached', () => {
-  const result = canTransition('in_progress', 'review', true, 'designer');
+test('designer can move from in_progress to review without uploading files', () => {
+  const result = canTransition('in_progress', 'review', 'designer');
   assert.equal(result.allowed, true);
 });
 
-test('admin can bypass transitions even without version', () => {
-  const result = canTransition('backlog', 'in_progress', false, 'admin');
+test('admin can move requests without uploading files', () => {
+  const result = canTransition('backlog', 'in_progress', 'admin');
   assert.equal(result.allowed, true);
 });
 
 test('requester is forbidden from moving backlog to in_progress directly', () => {
-  const result = canTransition('backlog', 'in_progress', false, 'requester');
+  const result = canTransition('backlog', 'in_progress', 'requester');
   assert.equal(result.allowed, false);
 });
 

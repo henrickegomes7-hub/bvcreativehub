@@ -8,7 +8,6 @@ import {
   ArrowRight, 
   ArrowLeft, 
   Upload, 
-  Layers, 
   MessageSquare, 
   Clock, 
   Plus, 
@@ -50,8 +49,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
     if (targetIndex < 0 || targetIndex >= STATUS_SEQUENCE.length) return;
 
     const targetStatus = STATUS_SEQUENCE[targetIndex];
-    const hasVersion = req.versions && req.versions.length > 0;
-    const check = canTransition(req.status, targetStatus, hasVersion, currentUser.role);
+    const check = canTransition(req.status, targetStatus, currentUser.role);
 
     if (!check.allowed) {
       alert(check.reason || 'Movimentação não permitida pelas regras da esteira.');
@@ -181,11 +179,6 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                           </Badge>
 
                           <div className="flex items-center gap-2 text-slate-400">
-                            {req.versions.length > 0 && (
-                              <span className="flex items-center gap-0.5 text-[#083181] dark:text-[#a0b900] font-semibold">
-                                <Layers className="w-3 h-3" /> V{req.current_version}
-                              </span>
-                            )}
                             {req.comments.length > 0 && (
                               <span className="flex items-center gap-0.5">
                                 <MessageSquare className="w-3 h-3" /> {req.comments.length}

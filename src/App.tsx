@@ -6,7 +6,6 @@ import {
   UserProfile, 
   NotificationItem, 
   RequestStatus, 
-  RequestVersion,
   RequestComment,
   RequestApproval,
 } from './types';
@@ -235,15 +234,6 @@ export default function App() {
     }
   };
 
-  const handleAddVersion = async (requestId: string, versionData: Omit<RequestVersion, 'id' | 'request_id' | 'version_number' | 'created_at'>) => {
-    try {
-      const { request } = await apiClient.addVersion(requestId, versionData);
-      updateRequest(request);
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Não foi possível enviar a versão.');
-    }
-  };
-
   const handleAddComment = async (requestId: string, commentData: Omit<RequestComment, 'id' | 'request_id' | 'created_at'>) => {
     try {
       const { request } = await apiClient.addComment(requestId, commentData.content);
@@ -455,7 +445,6 @@ export default function App() {
         currentUser={currentUser}
         isAdmin={isAdmin}
         onUpdateStatus={handleUpdateStatus}
-        onAddVersion={handleAddVersion}
         onAddComment={handleAddComment}
         onSubmitApproval={handleSubmitApproval}
       />

@@ -6,7 +6,6 @@ import {
   GraphicTemplate, 
   NotificationItem,
   RequestStatus,
-  RequestVersion,
   RequestComment,
   RequestApproval,
   ApprovalDecision
@@ -136,39 +135,6 @@ class StorageService {
 
   updateRequestStatus(id: string, newStatus: RequestStatus): CreativeRequest | null {
     return this.updateRequest(id, { status: newStatus });
-  }
-
-  // Adicionar nova versão de arquivo
-  addVersion(requestId: string, versionData: Omit<RequestVersion, 'id' | 'request_id' | 'version_number' | 'created_at'>): RequestVersion | null {
-    const req = this.getRequestById(requestId);
-    if (!req) return null;
-
-    const nextVersionNumber = (req.current_version || 0) + 1;
-    const newVersion: RequestVersion = {
-      ...versionData,
-      id: `ver-${Date.now()}`,
-      request_id: requestId,
-      version_number: nextVersionNumber,
-      created_at: new Date().toISOString(),
-    };
-
-    const updatedVersions = [...req.versions, newVersion];
-    this.updateRequest(requestId, {
-      current_version: nextVersionNumber,
-      versions: updatedVersions,
-      // Se estava no backlog, avança automaticamente para Em Produção ou Revisão
-      status: req.status === 'backlog' ? 'in_progress' : req.status,
-    });
-
-    this.addNotification({
-      title: `Nova Versão V${nextVersionNumber} postada`,
-      message: `Versão V${nextVersionNumber} de "${req.title}" foi enviada para conferência.`,
-      type: 'approval',
-      request_id: req.id,
-      request_code: req.code,
-    });
-
-    return newVersion;
   }
 
   // Comentários & Checklists
