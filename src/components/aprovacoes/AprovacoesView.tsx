@@ -13,7 +13,8 @@ import {
   Sparkles,
   ShieldCheck,
   Check,
-  Split
+  Split,
+  FileText
 } from 'lucide-react';
 
 interface AprovacoesViewProps {
@@ -58,6 +59,8 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
   const previousVer = activeRequest?.versions && activeRequest.versions.length > 1
     ? activeRequest.versions[activeRequest.versions.length - 2]
     : null;
+  const currentPreviewUrl = currentVer?.preview_url || currentVer?.file_url;
+  const previousPreviewUrl = previousVer?.preview_url || previousVer?.file_url;
 
   const handleDecision = (decision: ApprovalDecision) => {
     if (!activeRequest) return;
@@ -174,7 +177,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                       {compareVersion ? 'Ver Apenas Atual' : 'Comparar V1 x V2'}
                     </Button>
                   )}
-                  {currentVer && (
+                  {currentVer?.file_url ? (
                     <a
                       href={currentVer.file_url}
                       target="_blank"
@@ -183,13 +186,27 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                     >
                       <Download className="w-3.5 h-3.5 text-[#083181] dark:text-[#a0b900]" /> Baixar Peça
                     </a>
-                  )}
+                  ) : currentVer ? (
+                    <span className="text-[11px] text-slate-500 dark:text-slate-400">
+                      Arquivo enviado por WhatsApp ou e-mail
+                    </span>
+                  ) : null}
                 </div>
               </div>
 
               {/* Visual Display */}
               {currentVer ? (
                 <div>
+                  <div className="mb-3 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+                    O sistema mantém apenas o registro da versão. O arquivo é enviado ao solicitante por WhatsApp ou e-mail.
+                    {(activeRequest.briefing.delivery_email || activeRequest.briefing.delivery_whatsapp) && (
+                      <span className="mt-1 block">
+                        {activeRequest.briefing.delivery_email && `E-mail: ${activeRequest.briefing.delivery_email}`}
+                        {activeRequest.briefing.delivery_email && activeRequest.briefing.delivery_whatsapp && ' · '}
+                        {activeRequest.briefing.delivery_whatsapp && `WhatsApp: ${activeRequest.briefing.delivery_whatsapp}`}
+                      </span>
+                    )}
+                  </div>
                   {compareVersion && previousVer ? (
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       {/* Previous Version */}
@@ -198,11 +215,18 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                           <span className="text-xs font-bold text-slate-600">Versão Anterior (V{previousVer.version_number})</span>
                           <span className="text-[10px] text-slate-400">{previousVer.dimensions}</span>
                         </div>
-                        <img
-                          src={previousVer.preview_url || previousVer.file_url}
-                          alt="Versão Anterior"
-                          className="w-full aspect-square object-cover rounded-lg border border-slate-200"
-                        />
+                        {previousPreviewUrl ? (
+                          <img
+                            src={previousPreviewUrl}
+                            alt="Versão Anterior"
+                            className="w-full aspect-square object-cover rounded-lg border border-slate-200"
+                          />
+                        ) : (
+                          <div className="w-full aspect-square rounded-lg border border-dashed border-slate-300 flex flex-col items-center justify-center gap-2 text-xs text-slate-500">
+                            <FileText className="w-8 h-8" />
+                            Arquivo enviado externamente
+                          </div>
+                        )}
                         <p className="text-[11px] text-slate-500 mt-2 italic px-1">"{previousVer.changelog}"</p>
                       </div>
 
@@ -212,22 +236,37 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                           <span className="text-xs font-bold text-[#083181] dark:text-blue-300">Versão Atual (V{currentVer.version_number})</span>
                           <span className="text-[10px] text-[#083181] dark:text-blue-300 font-semibold">{currentVer.dimensions}</span>
                         </div>
-                        <img
-                          src={currentVer.preview_url || currentVer.file_url}
-                          alt="Versão Atual"
-                          className="w-full aspect-square object-cover rounded-lg border border-blue-300 dark:border-blue-700"
-                        />
+                        {currentPreviewUrl ? (
+                          <img
+                            src={currentPreviewUrl}
+                            alt="Versão Atual"
+                            className="w-full aspect-square object-cover rounded-lg border border-blue-300 dark:border-blue-700"
+                          />
+                        ) : (
+                          <div className="w-full aspect-square rounded-lg border border-dashed border-blue-300 dark:border-blue-700 flex flex-col items-center justify-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <FileText className="w-8 h-8" />
+                            Arquivo enviado externamente
+                          </div>
+                        )}
                         <p className="text-[11px] text-slate-700 dark:text-slate-300 mt-2 font-medium px-1">"{currentVer.changelog}"</p>
                       </div>
                     </div>
                   ) : (
-                    <div className="bg-slate-100 dark:bg-[#131F3D] rounded-xl overflow-hidden border border-slate-200 dark:border-[#1F3057] p-2 max-h-[450px] flex items-center justify-center">
-                      <img
-                        src={currentVer.preview_url || currentVer.file_url}
-                        alt="Preview da Arte"
-                        className="max-h-[420px] w-auto object-contain rounded-lg shadow-sm"
-                      />
-                    </div>
+                    currentPreviewUrl ? (
+                      <div className="bg-slate-100 dark:bg-[#131F3D] rounded-xl overflow-hidden border border-slate-200 dark:border-[#1F3057] p-2 max-h-[450px] flex items-center justify-center">
+                        <img
+                          src={currentPreviewUrl}
+                          alt="Preview da Arte"
+                          className="max-h-[420px] w-auto object-contain rounded-lg shadow-sm"
+                        />
+                      </div>
+                    ) : (
+                      <div className="p-8 text-center bg-slate-100 dark:bg-[#131F3D] rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-500 dark:text-slate-400">
+                        <FileText className="w-8 h-8 mx-auto mb-2" />
+                        <p className="font-semibold">{currentVer.file_name}</p>
+                        <p className="mt-1">Arquivo enviado ao solicitante por WhatsApp ou e-mail, fora do sistema.</p>
+                      </div>
+                    )
                   )}
 
                   <div className="flex items-center justify-between text-xs text-slate-500 dark:text-slate-400 mt-2 px-1">
@@ -241,7 +280,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                 </div>
               ) : (
                 <div className="p-8 text-center bg-slate-50 dark:bg-[#131F3D] rounded-xl border border-dashed border-slate-300 dark:border-slate-700 text-xs text-slate-400">
-                  Nenhum arquivo gráfico enviado para esta demanda ainda.
+                  Nenhuma versão registrada. O envio dos arquivos é feito fora do sistema, por WhatsApp ou e-mail.
                 </div>
               )}
 

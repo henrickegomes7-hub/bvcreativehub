@@ -76,7 +76,6 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
   // New Version Form State
   const [fileName, setFileName] = useState('');
-  const [fileUrl, setFileUrl] = useState('');
   const [changelog, setChangelog] = useState('');
   const [dimensions, setDimensions] = useState('1080x1350 px');
 
@@ -101,20 +100,11 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
   const handleCreateVersion = (e: React.FormEvent) => {
     e.preventDefault();
-    try {
-      const url = new URL(fileUrl);
-      if (url.protocol !== 'https:' || url.username || url.password) {
-        throw new Error('Use um link HTTPS compartilhado, sem credenciais embutidas.');
-      }
-    } catch (error) {
-      alert(error instanceof Error ? error.message : 'Informe um link HTTPS válido para o arquivo.');
-      return;
-    }
     const finalName = fileName.trim() || `BV_${request.code}_V${(request.current_version || 0) + 1}`;
 
     onAddVersion(request.id, {
       file_name: finalName,
-      file_url: fileUrl.trim(),
+      file_url: '',
       file_size: '',
       file_type: 'application/octet-stream',
       preview_url: '',
@@ -125,9 +115,8 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
       resolution_dpi: 72,
       color_profile: 'RGB',
     });
-
     setFileName('');
-    setFileUrl('');
+    setFileName('');
     setChangelog('');
     setActiveTab('versions');
   };
@@ -377,16 +366,16 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
           </div>
         )}
 
-        {/* Tab 2: Versões & Upload */}
+        {/* Tab 2: Version history and external delivery record */}
         {activeTab === 'versions' && (
           <div className="space-y-6">
             {/* Version List */}
             {request.versions.length === 0 ? (
               <div className="p-8 text-center bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-dashed border-slate-300 dark:border-slate-700">
                 <Upload className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nenhuma versão gráfica enviada ainda.</p>
+                <p className="text-sm font-semibold text-slate-700 dark:text-slate-300">Nenhuma versão registrada ainda.</p>
                 <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
-                  Adicione o link da versão V1 abaixo para avançar a esteira para revisão e aprovação.
+                  O envio do arquivo é feito fora do sistema, por WhatsApp ou e-mail.
                 </p>
               </div>
             ) : (
@@ -409,14 +398,20 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                       <span className="absolute top-2 left-2 px-2 py-0.5 bg-[#083181] text-white text-[11px] font-bold rounded-md shadow-xs">
                         Versão V{ver.version_number}
                       </span>
-                      <a
-                        href={ver.file_url}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                        className="absolute bottom-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-md text-xs flex items-center gap-1 backdrop-blur-xs"
-                      >
-                        <Download className="w-3.5 h-3.5" /> Baixar
-                      </a>
+                      {ver.file_url ? (
+                        <a
+                          href={ver.file_url}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="absolute bottom-2 right-2 p-1.5 bg-black/70 hover:bg-black text-white rounded-md text-xs flex items-center gap-1 backdrop-blur-xs"
+                        >
+                          <Download className="w-3.5 h-3.5" /> Baixar
+                        </a>
+                      ) : (
+                        <span className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 text-white rounded-md text-[10px] backdrop-blur-xs">
+                          Envio externo
+                        </span>
+                      )}
                     </div>
 
                     <div className="p-4 space-y-2">
@@ -441,13 +436,23 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
               </div>
             )}
 
-            {/* Upload New Version Form */}
+            {/* Register a version that was sent externally */}
             {isAdmin && <div className="p-5 bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-slate-200 dark:border-slate-800">
               <div className="flex items-center gap-2 mb-3">
                 <Upload className="w-4 h-4 text-[#083181] dark:text-[#a0b900]" />
                 <h4 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider">
-                  Enviar Nova Versão (V{(request.current_version || 0) + 1})
+                  Registrar Versão Enviada (V{(request.current_version || 0) + 1})
                 </h4>
+              </div>
+
+              <div className="mb-4 rounded-lg border border-blue-200 bg-blue-50 p-3 text-xs text-blue-900 dark:border-blue-900/50 dark:bg-blue-950/30 dark:text-blue-200">
+                Esta área é apenas informativa: o sistema não envia nem armazena arquivos. Envie a versão diretamente ao solicitante por WhatsApp ou e-mail e use o formulário abaixo para registrar o envio.
+                {(request.briefing.delivery_email || request.briefing.delivery_whatsapp) && (
+                  <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 font-semibold">
+                    {request.briefing.delivery_email && <span>E-mail: {request.briefing.delivery_email}</span>}
+                    {request.briefing.delivery_whatsapp && <span>WhatsApp: {request.briefing.delivery_whatsapp}</span>}
+                  </div>
+                )}
               </div>
 
               <form onSubmit={handleCreateVersion} className="space-y-3">
@@ -481,23 +486,6 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
                 <div>
                   <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Link HTTPS compartilhado do arquivo *
-                  </label>
-                  <input
-                    type="url"
-                    value={fileUrl}
-                    onChange={(e) => setFileUrl(e.target.value)}
-                    placeholder="https://..."
-                    required
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181]"
-                  />
-                  <p className="mt-1 text-[11px] text-slate-500 dark:text-slate-400">
-                    Hospede no OneDrive/SharePoint ou serviço da empresa e conceda acesso ao solicitante da demanda.
-                  </p>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
                     Changelog / O que mudou nesta versão? *
                   </label>
                   <textarea
@@ -511,7 +499,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
                 <div className="flex justify-end pt-2">
                   <Button type="submit" variant="primary" size="sm" icon={<Upload className="w-3.5 h-3.5" />}>
-                    Publicar Versão V{(request.current_version || 0) + 1}
+                    Registrar Versão V{(request.current_version || 0) + 1}
                   </Button>
                 </div>
               </form>
