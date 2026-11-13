@@ -56,7 +56,7 @@ export const Header: React.FC<HeaderProps> = ({
       case 'creative_manager': return { text: 'Gestora Criativa', bg: 'bg-[#083181]/15 text-[#083181] dark:text-blue-300' };
       case 'art_director': return { text: 'Diretor de Arte', bg: 'bg-purple-100 dark:bg-purple-950/50 text-purple-800 dark:text-purple-300' };
       case 'designer': return { text: 'Designer', bg: 'bg-[#a0b900]/20 text-[#627300] dark:text-[#a0b900]' };
-      case 'requester': return { text: 'Solicitante', bg: 'bg-[#c56a2d]/20 text-[#c56a2d]' };
+      case 'requester': return { text: 'Colaborador (a) Solicitante', bg: 'bg-[#c56a2d]/20 text-[#c56a2d]' };
       default: return { text: 'Admin', bg: 'bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200' };
     }
   };
