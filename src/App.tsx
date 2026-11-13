@@ -11,6 +11,7 @@ import {
 } from './types';
 import { Sidebar, NavTab } from './components/layout/Sidebar';
 import { Header } from './components/layout/Header';
+import { StarfieldBackground } from './components/layout/StarfieldBackground';
 import { DashboardView } from './components/dashboard/DashboardView';
 import { CollaboratorDashboardView } from './components/dashboard/CollaboratorDashboardView';
 import { SolicitacoesView } from './components/solicitacoes/SolicitacoesView';
@@ -358,10 +359,8 @@ export default function App() {
 
         {/* Scrollable View Container */}
         <main className="relative isolate min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-8">
-          <div className="hub-ambient" aria-hidden="true">
-            <div className="hub-ambient__orb hub-ambient__orb--blue" />
-            <div className="hub-ambient__orb hub-ambient__orb--green" />
-            <div className="hub-ambient__orb hub-ambient__orb--orange" />
+          <div className="hub-ambient">
+            <StarfieldBackground theme={theme} />
           </div>
           <div className="relative z-10 mx-auto max-w-7xl">
             {isAdmin && activeTab === 'dashboard' && (
