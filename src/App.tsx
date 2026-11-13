@@ -357,8 +357,13 @@ export default function App() {
         />
 
         {/* Scrollable View Container */}
-        <main className="min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-8">
-          <div className="max-w-7xl mx-auto">
+        <main className="relative isolate min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-8">
+          <div className="hub-ambient" aria-hidden="true">
+            <div className="hub-ambient__orb hub-ambient__orb--blue" />
+            <div className="hub-ambient__orb hub-ambient__orb--green" />
+            <div className="hub-ambient__orb hub-ambient__orb--orange" />
+          </div>
+          <div className="relative z-10 mx-auto max-w-7xl">
             {isAdmin && activeTab === 'dashboard' && (
               <DashboardView
                 requests={requests}

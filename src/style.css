@@ -71,3 +71,63 @@
 ::-webkit-scrollbar-thumb:hover {
   background: rgba(148, 163, 184, 0.7);
 }
+
+.hub-ambient {
+  position: absolute;
+  z-index: -1;
+  inset: 0;
+  overflow: hidden;
+  pointer-events: none;
+}
+
+.hub-ambient__orb {
+  position: absolute;
+  width: 24rem;
+  height: 24rem;
+  border-radius: 9999px;
+  filter: blur(72px);
+  opacity: 0.16;
+  animation: hub-ambient-drift 24s ease-in-out infinite alternate;
+  will-change: transform;
+}
+
+.hub-ambient__orb--blue {
+  top: -13rem;
+  right: 3%;
+  background: #477be0;
+}
+
+.hub-ambient__orb--green {
+  top: 35%;
+  left: -17rem;
+  background: #a0b900;
+  animation-delay: -8s;
+}
+
+.hub-ambient__orb--orange {
+  right: -15rem;
+  bottom: -16rem;
+  background: #c56a2d;
+  animation-delay: -14s;
+}
+
+.dark .hub-ambient__orb {
+  opacity: 0.12;
+}
+
+@keyframes hub-ambient-drift {
+  from {
+    transform: translate3d(-2rem, -1rem, 0) scale(0.92);
+  }
+
+  to {
+    transform: translate3d(2rem, 2rem, 0) scale(1.08);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .hub-ambient__orb {
+    animation: none;
+    will-change: auto;
+  }
+}
