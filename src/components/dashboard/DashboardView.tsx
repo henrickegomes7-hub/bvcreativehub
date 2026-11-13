@@ -110,7 +110,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* KPI Cards Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
         {/* Card 1: Total Demandas */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Demandas Ativas</span>
             <div className="p-2 bg-blue-50 dark:bg-[#083181]/20 rounded-lg text-[#083181] dark:text-blue-300">
@@ -129,7 +129,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 2: Prazos Críticos / Em Risco */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Prazos em Risco</span>
             <div className="p-2 bg-orange-50 dark:bg-[#c56a2d]/20 rounded-lg text-[#c56a2d]">
@@ -148,7 +148,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         {/* Card 3: Em Aprovação */}
         <div 
           onClick={() => onNavigateToTab('aprovacoes')}
-          className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 cursor-pointer transition-all group"
+          className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-[#083181] dark:hover:border-blue-400 cursor-pointer transition-all group"
         >
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Em Aprovação</span>
@@ -168,7 +168,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Card 4: Taxa de Aprovação de Primeira */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-slate-300 dark:hover:border-slate-600 transition-all">
+        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aprovação 1ª Versão</span>
             <div className="p-2 bg-emerald-50 dark:bg-[#a0b900]/20 rounded-lg text-[#6b7b00] dark:text-[#a0b900]">
@@ -188,7 +188,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Chart: Demandas por Departamento */}
-        <div className="lg:col-span-2 bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="lg:col-span-2 bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Volume por Departamento Solicitante</h3>
@@ -218,7 +218,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Right Chart: Pipeline por Status */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col justify-between">
+        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Funil de Produção</h3>

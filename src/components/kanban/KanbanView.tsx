@@ -59,7 +59,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Kanban Header & Filters */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Filtrar Quadro:</span>
 
@@ -98,7 +98,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           return (
             <div
               key={colStatus}
-              className="bg-slate-100/70 dark:bg-[#0E172E]/70 rounded-xl p-3 border border-slate-200 dark:border-[#1F3057] flex flex-col min-h-[500px]"
+              className="bg-[#E5EAF2] dark:bg-[#0E172E]/70 rounded-xl p-3 border border-slate-300/90 dark:border-[#1F3057] flex flex-col min-h-[500px]"
             >
               {/* Column Title */}
               <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-200 dark:border-[#1F3057]">
@@ -116,7 +116,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
               {/* Cards List */}
               <div className="space-y-3 flex-1 overflow-y-auto">
                 {colRequests.length === 0 ? (
-                  <div className="h-32 flex items-center justify-center text-center p-4 border border-dashed border-slate-300 dark:border-slate-700 rounded-lg text-[11px] text-slate-400">
+                  <div className="h-32 flex items-center justify-center text-center p-4 border border-dashed border-slate-400/80 dark:border-slate-700 rounded-lg text-[11px] text-slate-500 dark:text-slate-400">
                     Nenhuma tarefa nesta etapa
                   </div>
                 ) : (
@@ -129,7 +129,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                       <div
                         key={req.id}
                         onClick={() => onSelectRequest(req.id)}
-                        className="bg-white dark:bg-[#131F3D] rounded-lg p-3.5 border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer space-y-2.5 group relative"
+                        className="bg-white dark:bg-[#131F3D] rounded-lg p-3.5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer space-y-2.5 group relative"
                       >
                         {/* Top Meta */}
                         <div className="flex items-center justify-between text-[11px]">

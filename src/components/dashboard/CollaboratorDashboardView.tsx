@@ -73,7 +73,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
             key={label}
             type="button"
             onClick={onNavigateToRequests}
-            className="rounded-xl border border-slate-200 bg-white p-5 text-left shadow-xs transition-colors hover:border-[#083181] dark:border-[#1F3057] dark:bg-[#0E172E] dark:hover:border-blue-400"
+            className="rounded-xl border border-slate-300/80 bg-white p-5 text-left shadow-sm transition-colors hover:border-[#083181] dark:border-[#1F3057] dark:bg-[#0E172E] dark:hover:border-blue-400"
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
@@ -87,7 +87,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]">
+        <div className="overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Próximos prazos</h3>
@@ -126,7 +126,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
           )}
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]">
+        <div className="overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Solicitações recentes</h3>

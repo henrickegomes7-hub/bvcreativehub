@@ -70,7 +70,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-1.5 bg-blue-50 dark:bg-[#083181]/30 text-[#083181] dark:text-blue-300 rounded-md">
@@ -93,7 +93,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
       </div>
 
       {pendingRequests.length === 0 ? (
-        <div className="bg-white dark:bg-[#0E172E] rounded-2xl p-12 text-center border border-slate-200 dark:border-[#1F3057]">
+        <div className="bg-white dark:bg-[#0E172E] rounded-2xl p-12 text-center border border-slate-300/80 dark:border-[#1F3057] shadow-sm">
           <CheckCircle2 className="w-12 h-12 text-[#a0b900] mx-auto mb-3" />
           <h3 className="text-base font-bold text-slate-800 dark:text-white">Tudo em dia! Nenhuma demanda pendente de aprovação.</h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
@@ -103,7 +103,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           {/* Left Column: List of Pending Items */}
-          <div className="lg:col-span-4 bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs p-3 space-y-2">
+          <div className="lg:col-span-4 bg-white dark:bg-[#0E172E] rounded-xl border border-slate-300/80 dark:border-[#1F3057] shadow-sm p-3 space-y-2">
             <p className="text-xs font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider px-2 py-1">
               Fila de Peças para Validação
             </p>
@@ -120,7 +120,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
                     className={`p-3.5 rounded-xl border text-left cursor-pointer transition-all ${
                       isSelected
                         ? 'bg-[#083181]/10 dark:bg-[#083181]/25 border-[#083181] dark:border-blue-400 ring-1 ring-[#083181]/50'
-                        : 'bg-white dark:bg-[#131F3D] border-slate-200 dark:border-[#1F3057] hover:border-slate-300 dark:hover:border-slate-600'
+                        : 'bg-slate-50 dark:bg-[#131F3D] border-slate-300/80 dark:border-[#1F3057] hover:border-slate-400 dark:hover:border-slate-600'
                     }`}
                   >
                     <div className="flex items-center justify-between text-[11px] mb-1">
@@ -142,7 +142,7 @@ export const AprovacoesView: React.FC<AprovacoesViewProps> = ({
 
           {/* Right Column: Visual Inspector & Decision Panel */}
           {activeRequest && (
-            <div className="lg:col-span-8 bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs p-5 space-y-6">
+            <div className="lg:col-span-8 bg-white dark:bg-[#0E172E] rounded-xl border border-slate-300/80 dark:border-[#1F3057] shadow-sm p-5 space-y-6">
               {/* Request Info Bar */}
               <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-4 border-b border-slate-100 dark:border-slate-800">
                 <div>

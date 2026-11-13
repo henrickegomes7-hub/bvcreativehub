@@ -84,7 +84,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Filters Bar */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-3">
+      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-2.5">
           <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
             <Filter className="w-3.5 h-3.5" />
@@ -160,11 +160,22 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
       </div>
 
       {/* Table Container */}
-      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] md:block">
+      <div className="hidden overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E] md:block">
         <div className="overflow-x-auto">
-          <table className="w-full text-left border-collapse">
+          <table className="w-full min-w-[1280px] table-fixed border-collapse text-left">
+            <colgroup>
+              <col className="w-[88px]" />
+              <col className="w-[235px]" />
+              <col className="w-[132px]" />
+              <col className="w-[175px]" />
+              <col className="w-[150px]" />
+              <col className="w-[105px]" />
+              <col className="w-[145px]" />
+              <col className="w-[140px]" />
+              <col className="w-[110px]" />
+            </colgroup>
             <thead>
-              <tr className="bg-slate-50/80 dark:bg-[#131F3D] border-b border-slate-200 dark:border-[#1F3057] text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">
+              <tr className="bg-slate-100/90 dark:bg-[#131F3D] border-b border-slate-200 dark:border-[#1F3057] text-[11px] font-bold text-slate-600 dark:text-slate-400 uppercase tracking-wider">
                 <th className="py-3 px-4">Código</th>
                 <th className="py-3 px-4">Demanda & Briefing</th>
                 <th className="py-3 px-4">Departamento</th>
@@ -195,9 +206,9 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                     <tr
                       key={req.id}
                       onClick={() => onSelectRequest(req.id)}
-                      className="hover:bg-slate-50/80 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
+                      className="hover:bg-blue-50/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                     >
-                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white">
+                      <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
                         {req.code}
                       </td>
 
@@ -223,12 +234,12 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                             className="w-2 h-2 rounded-full shrink-0" 
                             style={{ backgroundColor: dept?.color || '#083181' }} 
                           />
-                          {dept?.name || 'Geral'}
+                          <span className="truncate">{dept?.name || 'Geral'}</span>
                         </span>
                       </td>
 
                       <td className="py-3.5 px-4">
-                        <span className="text-[11px] font-medium text-slate-700 dark:text-slate-300 bg-slate-100 dark:bg-[#131F3D] px-2 py-0.5 rounded">
+                        <span className="inline-block max-w-full rounded bg-slate-100 px-2 py-1 text-[11px] font-medium leading-snug text-slate-700 dark:bg-[#131F3D] dark:text-slate-300">
                           {getFormatLabel(req.format)}
                         </span>
                       </td>
@@ -322,7 +333,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
 
       <div className="space-y-3 md:hidden">
         {filteredRequests.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-slate-400 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]">
+          <div className="rounded-xl border border-slate-300/80 bg-white p-8 text-center text-slate-400 shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
             <Layers className="mx-auto mb-2 h-8 w-8 opacity-50" />
             <p className="font-semibold text-slate-700 dark:text-slate-300">Nenhuma demanda encontrada.</p>
             <p className="mt-1 text-xs">Ajuste os filtros ou cadastre uma nova solicitação.</p>
@@ -335,7 +346,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
           return (
             <div
               key={req.id}
-              className="w-full rounded-xl border border-slate-200 bg-white p-4 text-left shadow-xs transition-colors hover:border-[#083181]/40 dark:border-[#1F3057] dark:bg-[#0E172E]"
+              className="w-full rounded-xl border border-slate-300/80 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#083181]/40 dark:border-[#1F3057] dark:bg-[#0E172E]"
             >
               <button
                 type="button"

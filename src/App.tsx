@@ -321,7 +321,7 @@ export default function App() {
   };
 
   return (
-    <div className="flex h-dvh bg-[#F5F6F8] dark:bg-[#070D1E] text-[#171A19] dark:text-[#F8FAFC] overflow-hidden transition-colors duration-200">
+    <div className="flex h-dvh bg-[#EEF2F7] dark:bg-[#070D1E] text-[#171A19] dark:text-[#F8FAFC] overflow-hidden transition-colors duration-200">
       {/* Sidebar Navigation */}
       <Sidebar
         activeTab={visibleTab}
