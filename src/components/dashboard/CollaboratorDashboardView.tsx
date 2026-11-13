@@ -59,7 +59,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
             variant="primary"
             size="sm"
             onClick={onOpenNewRequest}
-            className="shrink-0 border border-white/20 bg-white text-[#083181] hover:bg-slate-100"
+            className="shrink-0 border border-white/20 !bg-white !text-[#083181] hover:!bg-slate-100"
           >
             <Plus className="mr-1.5 h-4 w-4" />
             Nova solicitação
