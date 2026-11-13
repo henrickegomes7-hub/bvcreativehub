@@ -11,7 +11,7 @@ interface Star {
   colorIndex: number;
 }
 
-const STAR_COUNT = 90;
+const STAR_COUNT = 140;
 
 export const StarfieldBackground: React.FC<StarfieldBackgroundProps> = ({ theme }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
@@ -30,7 +30,7 @@ export const StarfieldBackground: React.FC<StarfieldBackgroundProps> = ({ theme 
     const reducedMotion = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
     const colors = theme === 'dark'
       ? ['255,255,255', '147,197,253', '96,165,250']
-      : ['8,49,129', '37,99,235', '219,234,254'];
+      : ['8,49,129', '29,78,216', '59,130,246'];
     const stars: Star[] = [];
 
     const resize = () => {
@@ -73,7 +73,9 @@ export const StarfieldBackground: React.FC<StarfieldBackgroundProps> = ({ theme 
 
         const nextX = width / 2 + (star.x / star.z) * focalLength;
         const nextY = height / 2 + (star.y / star.z) * focalLength;
-        const opacity = 0.08 + (1 - star.z / depth) * 0.34;
+        const opacity = theme === 'dark'
+          ? 0.08 + (1 - star.z / depth) * 0.34
+          : 0.24 + (1 - star.z / depth) * 0.56;
         const color = colors[star.colorIndex];
 
         context.beginPath();
@@ -85,7 +87,10 @@ export const StarfieldBackground: React.FC<StarfieldBackgroundProps> = ({ theme 
         }
         context.strokeStyle = `rgba(${color},${opacity})`;
         context.fillStyle = `rgba(${color},${opacity})`;
-        context.lineWidth = Math.max(0.6, (1 - star.z / depth) * 1.3);
+        context.lineWidth = Math.max(
+          theme === 'dark' ? 0.6 : 1,
+          (1 - star.z / depth) * (theme === 'dark' ? 1.3 : 1.8),
+        );
         context.stroke();
         if (reducedMotion) context.fill();
 

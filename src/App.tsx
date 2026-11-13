@@ -358,7 +358,7 @@ export default function App() {
         />
 
         {/* Scrollable View Container */}
-        <main className="relative isolate min-h-0 flex-1 overflow-y-auto p-3 sm:p-4 md:p-8">
+        <main className="relative isolate min-h-0 flex-1 overflow-y-auto bg-white p-3 sm:p-4 md:p-8 dark:bg-[#070D1E]">
           <div className="hub-ambient">
             <StarfieldBackground theme={theme} />
           </div>

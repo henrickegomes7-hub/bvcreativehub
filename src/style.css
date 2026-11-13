@@ -88,6 +88,6 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hub-starfield {
-    opacity: 0.65;
+    opacity: 1;
   }
 }
