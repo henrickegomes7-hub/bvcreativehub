@@ -19,7 +19,8 @@ departmentsRouter.get('/departments', requireUser, async (_req, res) => {
          WHEN 'dept-inovacao' THEN 6
          WHEN 'dept-compliance' THEN 7
          WHEN 'dept-funeraria' THEN 8
-         ELSE 9
+         WHEN 'dept-grupo-bv' THEN 9
+         ELSE 10
        END, name`,
     );
     res.json({ departments: result.rows });

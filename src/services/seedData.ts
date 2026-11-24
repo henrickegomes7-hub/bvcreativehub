@@ -73,6 +73,15 @@ export const INITIAL_DEPARTMENTS: Department[] = [
     color: '#64748B',
     description: 'Departamento solicitante do BV Creative Hub.',
   },
+  {
+    id: 'dept-grupo-bv',
+    code: 'GBV',
+    name: 'GRUPO BV',
+    manager_name: 'A definir',
+    icon: 'Building2',
+    color: '#083181',
+    description: 'Departamento solicitante do BV Creative Hub.',
+  },
 ];
 
 export const INITIAL_USERS: UserProfile[] = [
