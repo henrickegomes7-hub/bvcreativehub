@@ -1,57 +1,46 @@
-# Guia de Setup e Execução
+# Configuração e execução
 
-## Requisitos
+## Ambiente local
 
-- Node.js 22+
-- npm
-- PostgreSQL configurado
-- VS Code (opcional, mas recomendado)
+Use Node.js 22.12 ou superior, Bun 1.4.5, Git e um PostgreSQL acessível ao processo da aplicação.
 
-## 1. Instalação
-
-```bash
-npm install
+```powershell
+Copy-Item .env.example .env
+bun install --frozen-lockfile
 ```
 
-## 2. Variáveis de ambiente
+Configure as variáveis do [.env.example](../.env.example):
 
-Crie um arquivo `.env` com base no exemplo disponível em `config/examples` ou no template do projeto.
+| Variável | Finalidade |
+| --- | --- |
+| `DATABASE_URL` | URL de conexão com o PostgreSQL. Use uma base separada em desenvolvimento e homologação. |
+| `ADMIN_EMAIL` | E-mail reservado à administração do ambiente. |
+| `ADMIN_BOOTSTRAP_TOKEN` | Segredo aleatório usado para inicializar o primeiro administrador em um banco novo. |
+| `APP_URL` | Origem da aplicação, usada para gerar os links de convite. Use o endereço HTTPS em ambientes compartilhados. |
+| `SUPPORT_EMAIL` | Contato de suporte apresentado na entrada. |
+| `GMAIL_CLIENT_ID`, `GMAIL_CLIENT_SECRET`, `GMAIL_REFRESH_TOKEN`, `GMAIL_SENDER_EMAIL` | Credenciais OAuth e remetente da Gmail API para convites e recuperação de senha. |
 
-```env
-DATABASE_URL=postgresql://usuario:senha@host:5432/banco
-ADMIN_EMAIL=seu-email@dominio.com
-ADMIN_BOOTSTRAP_TOKEN=token-secreto-com-32-caracteres-ou-mais
-GMAIL_CLIENT_ID=seu-client-id
-GMAIL_CLIENT_SECRET=seu-client-secret
-GMAIL_REFRESH_TOKEN=seu-refresh-token
-GMAIL_SENDER_EMAIL=seu-email-remetente@gmail.com
+```powershell
+bun run db:migrate
+bun run dev
 ```
 
-## 3. Execução local
+Acesse `http://localhost:3000`. Se o banco ainda estiver vazio, use a opção de configuração inicial da conta administrativa. Depois da criação dessa conta, o token de bootstrap pode ser retirado do ambiente. O cadastro normal cria uma conta de solicitante.
 
-```bash
-npm run dev
-```
+## Homologação e produção
 
-A aplicação ficará disponível em `http://localhost:3000`.
+Aplique as migrações da pasta `database/migrations/` no banco do ambiente de destino. Na Vercel, cadastre as variáveis do ambiente antes de gerar o deploy. Depois, verifique `/api/health`, o login e um fluxo de solicitação com uma conta de teste autorizada. Para testar convites e recuperação, configure um remetente de homologação e confirme a entrega na caixa de teste.
 
-## 4. Verificações úteis
+Armazene credenciais reais no gerenciador de segredos. Mantenha `.env`, `.env.local` e os metadados locais da Vercel fora do Git. Se algum segredo tiver sido exposto, revogue-o e substitua-o no provedor e no ambiente que o utiliza.
 
-```bash
-npm run lint
-npm test
-npm run check
-```
+## Comandos
 
-## 5. Fluxo de bootstrap admin
-
-A conta administrativa inicial deve ser criada usando o token de bootstrap definido no ambiente.
-
-Depois do primeiro cadastro admin, a variável `ADMIN_BOOTSTRAP_TOKEN` pode ser removida ou restringida em produção.
-
-## 6. Boas práticas
-
-- Nunca commitar `.env` em repositório público
-- Usar credenciais de produção apenas em ambiente seguro
-- Sempre validar logs e auditoria antes de liberar mudanças de autenticação
-- Manter role checks explícitos em endpoints sensíveis
+| Comando | Resultado |
+| --- | --- |
+| `bun run dev` | Inicia frontend e API juntos. |
+| `bun run db:migrate` | Aplica as migrações PostgreSQL. |
+| `bun run lint` | Executa a checagem de tipos. |
+| `bun run test` | Executa os testes automatizados. |
+| `bun run check` | Executa a checagem de tipos e os testes. |
+| `bun run build` | Gera os assets de produção em `dist/`. |
+| `bun run package:source` | Gera o ZIP e o manifesto em `release/`, a partir do checkout Git. |

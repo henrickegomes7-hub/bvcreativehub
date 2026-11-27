@@ -1,7 +1,8 @@
 import React, { useState } from 'react';
-import { ArrowLeft, Gift, KeyRound, LockKeyhole, LogIn, Moon, Sun, UserPlus } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Gift, KeyRound, LockKeyhole, Moon, Sun, UserPlus } from 'lucide-react';
+import { Button } from '../ui/Button';
 
-type AuthMode = 'login' | 'register' | 'admin' | 'forgot' | 'verify-code' | 'reset-password';
+type AuthMode = 'login' | 'register' | 'invite-register' | 'admin' | 'forgot' | 'verify-code' | 'reset-password';
 
 const backgroundMarks = [
   { left: '3%', top: '7%', rotate: '-18deg', size: 44 },
@@ -32,12 +33,13 @@ const backgroundMarks = [
 
 interface AuthViewProps {
   configured: boolean;
+  supportEmail?: string;
   adminSetupRequired: boolean;
   error: string | null;
   theme: 'light' | 'dark';
   onToggleTheme: () => void;
   onLogin: (email: string, password: string) => Promise<void>;
-  onRegister: (name: string, email: string, password: string) => Promise<void>;
+  onRegister: (name: string, email: string, password: string, token?: string) => Promise<void>;
   onBootstrapAdmin: (name: string, email: string, password: string, token: string) => Promise<void>;
   onRequestPasswordReset: (email: string) => Promise<void>;
   onVerifyPasswordResetCode: (email: string, code: string) => Promise<string>;
@@ -46,6 +48,7 @@ interface AuthViewProps {
 
 export const AuthView: React.FC<AuthViewProps> = ({
   configured,
+  supportEmail,
   adminSetupRequired,
   error,
   theme,
@@ -57,11 +60,16 @@ export const AuthView: React.FC<AuthViewProps> = ({
   onVerifyPasswordResetCode,
   onCompletePasswordReset,
 }) => {
-  const [mode, setMode] = useState<AuthMode>(adminSetupRequired ? 'admin' : 'login');
+  const [invitation] = useState(() => new URLSearchParams(location.hash.slice(1)));
+  const [mode, setMode] = useState<AuthMode>(invitation.has('invitation') ? 'invite-register' : adminSetupRequired ? 'admin' : 'login');
+  React.useEffect(()=>{if(invitation.has('invitation')) history.replaceState(null,'',location.pathname);},[]);
   const [name, setName] = useState('');
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(invitation.get('email') ?? '');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [confirmPassword, setConfirmPassword] = useState('');
+  const [passwordMismatch, setPasswordMismatch] = useState(false);
+  const confirmationInput = React.useRef<HTMLInputElement>(null);
   const [code, setCode] = useState('');
   const [resetToken, setResetToken] = useState('');
   const [bootstrapToken, setBootstrapToken] = useState('');
@@ -70,17 +78,27 @@ export const AuthView: React.FC<AuthViewProps> = ({
   const [notice, setNotice] = useState<string | null>(null);
 
   const isRecovery = mode === 'forgot' || mode === 'verify-code' || mode === 'reset-password';
+  const isRegistration = mode === 'register' || mode === 'invite-register';
+  const requiresConfirmation = isRegistration || mode === 'reset-password';
 
   const submit = async (event: React.FormEvent) => {
     event.preventDefault();
-    setIsSubmitting(true);
     setSubmitError(null);
     setNotice(null);
+    if (requiresConfirmation && password !== confirmPassword) {
+      setPasswordMismatch(true);
+      confirmationInput.current?.focus();
+      return;
+    }
+    setPasswordMismatch(false);
+    setIsSubmitting(true);
     try {
       if (mode === 'admin') {
         await onBootstrapAdmin(name, email, password, bootstrapToken);
-      } else if (mode === 'register') {
-        await onRegister(name, email, password);
+      } else if (isRegistration) {
+        await onRegister(name, email, password, mode === 'invite-register' ? invitation.get('invitation') ?? '' : undefined);
+        changeMode('login');
+        setNotice('Conta criada. Entre com seu e-mail e senha.');
       } else if (mode === 'login') {
         await onLogin(email, password);
       } else if (mode === 'forgot') {
@@ -92,16 +110,8 @@ export const AuthView: React.FC<AuthViewProps> = ({
         setResetToken(verifiedToken);
         setMode('reset-password');
       } else {
-        if (password !== confirmPassword) {
-          setSubmitError('As senhas não coincidem.');
-          return;
-        }
         await onCompletePasswordReset(resetToken, password);
-        setMode('login');
-        setPassword('');
-        setConfirmPassword('');
-        setCode('');
-        setResetToken('');
+        changeMode('login');
         setNotice('Senha redefinida com sucesso. Faça login com sua nova senha.');
       }
     } catch (submitFailure) {
@@ -116,7 +126,9 @@ export const AuthView: React.FC<AuthViewProps> = ({
     setSubmitError(null);
     setNotice(null);
     setPassword('');
+    setShowPassword(false);
     setConfirmPassword('');
+    setPasswordMismatch(false);
     setCode('');
     setResetToken('');
   };
@@ -127,27 +139,30 @@ export const AuthView: React.FC<AuthViewProps> = ({
       ? 'Verifique seu e-mail'
       : mode === 'reset-password'
         ? 'Crie uma nova senha'
-        : 'BV Creative Hub';
+        : isRegistration ? 'Criar conta' : 'BV Creative Hub';
   const description = mode === 'admin'
     ? 'Configuração inicial da conta administrativa'
-    : mode === 'register'
-      ? 'Crie sua conta de colaborador'
+    : isRegistration
+      ? 'Informe seu nome, e-mail e uma senha para acessar o BV Creative Hub.'
       : mode === 'login'
-        ? 'Entre para acompanhar suas solicitações'
+        ? 'Solicite materiais criativos e acompanhe prazos e aprovações em um só lugar.'
         : mode === 'forgot'
           ? 'Informe o e-mail cadastrado para receber um código de redefinição.'
           : mode === 'verify-code'
             ? 'Digite o código de seis dígitos enviado para seu e-mail.'
             : 'Escolha uma senha nova para sua conta.';
-  const fieldClassName = `mt-1 w-full rounded-lg border px-3 py-2.5 text-sm outline-none focus:ring-2 ${
+  const fieldClassName = `mt-1.5 min-h-11 w-full rounded-xl border px-3 py-2.5 text-base outline-none focus:ring-2 sm:text-sm ${
     theme === 'dark'
-      ? 'border-white/50 bg-white text-[#083181] focus:border-white focus:ring-white/30'
-      : 'border-slate-300 bg-white text-slate-900 focus:border-[#083181] focus:ring-[#083181]/20'
+      ? 'border-slate-600 bg-[#0b1525] text-white focus:border-blue-400 focus:ring-blue-400/35'
+      : 'border-white bg-white text-[#083181] focus:ring-sky-300'
   }`;
-  const labelClassName = `block text-sm font-medium ${theme === 'light' ? 'text-white' : 'text-slate-700'}`;
+  const labelClassName = 'block text-sm font-semibold';
+  const muted = theme === 'light' ? 'text-blue-100' : 'text-slate-300';
+  const link = 'rounded font-semibold underline-offset-4 hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-sky-400';
+  const cardLink = `${link} ${theme === 'light' ? 'text-white' : 'text-blue-300'}`;
 
   return (
-    <main className={`relative isolate min-h-screen flex items-center justify-center overflow-hidden px-4 py-10 transition-colors duration-200 ${theme === 'light' ? 'bg-white' : 'bg-[#083181]'}`}>
+    <main className={`hub-auth relative isolate flex min-h-dvh items-center justify-center px-4 py-6 sm:py-10 ${theme === 'light' ? 'hub-auth-light bg-[#eef2f7]' : 'bg-[#070c16]'}`}>
       <div aria-hidden="true" className={`pointer-events-none absolute inset-0 select-none overflow-hidden ${theme === 'light' ? 'text-[#083181]/10' : 'text-white/20'}`}>
         {backgroundMarks.map((mark, index) => (
           <span
@@ -167,11 +182,11 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   height: mark.size,
                   backgroundColor: theme === 'light' ? '#083181' : '#FFFFFF',
                   opacity: theme === 'light' ? 0.12 : 0.2,
-                  maskImage: 'url("/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png")',
+                  maskImage: 'url("/assets/bv-mark.png")',
                   maskPosition: 'center',
                   maskRepeat: 'no-repeat',
                   maskSize: 'contain',
-                  WebkitMaskImage: 'url("/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png")',
+                  WebkitMaskImage: 'url("/assets/bv-mark.png")',
                   WebkitMaskPosition: 'center',
                   WebkitMaskRepeat: 'no-repeat',
                   WebkitMaskSize: 'contain',
@@ -191,38 +206,36 @@ export const AuthView: React.FC<AuthViewProps> = ({
           </span>
         ))}
       </div>
-      <section className={`relative z-10 w-full max-w-md rounded-2xl border shadow-xl p-8 transition-colors duration-200 ${
+      <section className={`relative w-full max-w-md rounded-2xl border p-5 shadow-xl sm:p-8 ${
         theme === 'light'
-          ? 'border-[#3159A4] bg-[#083181] text-white'
-          : 'border-slate-200 bg-white text-slate-900'
+          ? 'border-[#3159a4] bg-[#083181] text-white'
+          : 'border-slate-700 bg-[#101a2b] text-slate-100'
       }`}>
         <button
           type="button"
           onClick={onToggleTheme}
-          className={`absolute right-5 top-5 rounded-lg p-2 transition-colors ${
+          className={`absolute right-4 top-4 grid size-11 place-items-center rounded-lg transition-colors focus-visible:outline-2 focus-visible:outline-blue-500 sm:right-5 sm:top-5 ${
             theme === 'light'
-              ? 'text-white hover:bg-white/15 hover:text-white'
-              : 'text-slate-500 hover:bg-slate-100 hover:text-slate-800'
+              ? 'text-blue-100 hover:bg-white/15'
+              : 'text-slate-300 hover:bg-white/10 hover:text-white'
           }`}
           aria-label="Alternar tema claro e escuro"
           title={theme === 'dark' ? 'Mudar para tema claro' : 'Mudar para tema escuro'}
         >
           {theme === 'dark'
-            ? <Sun className="h-4 w-4 text-[#083181]" />
-            : <Moon className="h-4 w-4 text-white" />}
+            ? <Sun className="h-4 w-4 text-[#e8dda5]" />
+            : <Moon className="h-4 w-4" />}
         </button>
-        <div className={`mx-auto mb-5 flex h-12 w-12 items-center justify-center rounded-xl ${
-          theme === 'light' ? 'bg-white text-[#083181]' : 'bg-[#083181] text-white'
-        }`}>
-          {isRecovery ? <KeyRound /> : mode === 'login' ? <LogIn /> : mode === 'admin' ? <LockKeyhole /> : <UserPlus />}
+        <div aria-hidden="true" className={`mb-4 grid size-12 place-items-center ${mode === 'login' ? 'mx-auto' : 'rounded-xl bg-[#083181] text-white'}`}>
+          {mode === 'login' ? <img src="/assets/bv-mark.png" alt="" width="48" height="48" className="size-12 object-contain" />
+            : isRecovery ? <KeyRound /> : mode === 'admin' ? <LockKeyhole /> : <UserPlus />}
         </div>
-        <h1 className={`text-center text-2xl font-bold ${theme === 'light' ? 'text-white' : 'text-slate-900'}`}>{title}</h1>
-        <p className={`mt-2 text-center text-sm ${theme === 'light' ? 'text-white/75' : 'text-slate-500'}`}>{description}</p>
+        <h1 className="text-2xl font-bold tracking-tight sm:text-3xl">{title}</h1>
+        <p className={`mt-2 text-sm leading-relaxed ${muted}`}>{description}</p>
 
         {!configured && (
           <div className="mt-6 rounded-lg border border-amber-300 bg-amber-50 p-4 text-sm text-amber-900">
-            O banco PostgreSQL ainda não está configurado. Configure <code>DATABASE_URL</code> e aplique a migração do projeto para habilitar o login.
-          </div>
+            O serviço está temporariamente indisponível. Tente novamente em alguns minutos.</div>
         )}
 
         {(error || submitError) && (
@@ -239,7 +252,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
         {configured && (
           <>
             <form onSubmit={submit} className="mt-6 space-y-4">
-              {(mode === 'register' || mode === 'admin') && (
+              {(isRegistration || mode === 'admin') && (
                 <label className={labelClassName}>
                   Nome completo
                   <input required minLength={2} maxLength={150} autoComplete="name" value={name} onChange={(event) => setName(event.target.value)} className={fieldClassName} />
@@ -252,7 +265,7 @@ export const AuthView: React.FC<AuthViewProps> = ({
                   <input
                     required
                     type="email"
-                    autoComplete="email"
+                    autoComplete={mode === 'login' ? 'username' : 'email'}
                     readOnly={mode === 'verify-code'}
                     value={email}
                     onChange={(event) => setEmail(event.target.value)}
@@ -268,39 +281,57 @@ export const AuthView: React.FC<AuthViewProps> = ({
                 </label>
               )}
 
-              {(mode === 'login' || mode === 'register' || mode === 'admin' || mode === 'reset-password') && (
-                <label className={labelClassName}>
-                  {mode === 'reset-password' ? 'Nova senha (mínimo 12 caracteres)' : 'Senha (mínimo 12 caracteres)'}
-                  <input required type="password" minLength={12} maxLength={128} autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password} onChange={(event) => setPassword(event.target.value)} className={fieldClassName} />
-                </label>
+              {(mode === 'login' || isRegistration || mode === 'admin' || mode === 'reset-password') && (
+                <div>
+                  <label htmlFor="auth-password" className={labelClassName}>{mode === 'reset-password' ? 'Nova senha' : 'Senha'}</label>
+                  <div className="relative">
+                    <input id="auth-password" required type={showPassword ? 'text' : 'password'} minLength={12} maxLength={128}
+                      aria-describedby={mode === 'login' ? undefined : 'auth-password-hint'}
+                      autoComplete={mode === 'login' ? 'current-password' : 'new-password'} value={password}
+                      onChange={(event) => { setPassword(event.target.value); setPasswordMismatch(false); }} className={`${fieldClassName} pr-12`} />
+                    <button type="button" aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                      onClick={() => setShowPassword(visible => !visible)}
+                      className={`absolute inset-y-0 right-0 mt-1.5 grid w-11 place-items-center rounded-r-xl focus-visible:outline-2 focus-visible:outline-blue-500 ${theme === 'light' ? 'text-[#083181]' : muted}`}>
+                      {showPassword ? <EyeOff aria-hidden="true" className="size-4" /> : <Eye aria-hidden="true" className="size-4" />}
+                    </button>
+                  </div>
+                  {mode !== 'login' && <p id="auth-password-hint" className={`mt-1 text-xs ${muted}`}>Use pelo menos 12 caracteres.</p>}
+                  {mode === 'login' && <button type="button" disabled={isSubmitting}
+                    className={`mt-2 py-1 text-sm ${cardLink}`} onClick={() => changeMode('forgot')}>Esqueceu a senha?</button>}
+                </div>
               )}
 
-              {mode === 'reset-password' && (
-                <label className={labelClassName}>
-                  Confirme a nova senha
-                  <input required type="password" minLength={12} maxLength={128} autoComplete="new-password" value={confirmPassword} onChange={(event) => setConfirmPassword(event.target.value)} className={fieldClassName} />
-                </label>
+              {requiresConfirmation && (
+                <div>
+                  <label htmlFor="auth-confirm-password" className={labelClassName}>
+                    {mode === 'reset-password' ? 'Confirme a nova senha' : 'Confirme a senha'}
+                  </label>
+                  <input ref={confirmationInput} id="auth-confirm-password" required type="password" minLength={12} maxLength={128}
+                    autoComplete="new-password" value={confirmPassword} aria-invalid={passwordMismatch}
+                    aria-describedby={passwordMismatch ? 'auth-confirm-password-error' : undefined}
+                    onChange={(event) => { setConfirmPassword(event.target.value); setPasswordMismatch(false); }}
+                    className={`${fieldClassName} aria-invalid:border-rose-400`} />
+                  {passwordMismatch && <p role="alert" id="auth-confirm-password-error"
+                    className="mt-1 text-xs font-medium text-rose-200">As senhas não coincidem.</p>}
+                </div>
               )}
 
               {mode === 'admin' && (
                 <label className={labelClassName}>
                   Chave de configuração inicial
                   <input required type="password" autoComplete="off" value={bootstrapToken} onChange={(event) => setBootstrapToken(event.target.value)} className={fieldClassName} />
-                  <span className={`mt-1 block text-xs font-normal ${theme === 'light' ? 'text-white/70' : 'text-slate-500'}`}>Definida no servidor como ADMIN_BOOTSTRAP_TOKEN; não compartilhe essa chave.</span>
+                  <span className={`mt-1 block text-xs font-normal ${muted}`}>Use a chave de configuração inicial fornecida pela administração.</span>
                 </label>
               )}
 
-              <button disabled={isSubmitting} className={`w-full rounded-lg px-4 py-3 text-sm font-semibold disabled:opacity-60 ${
-                theme === 'light'
-                  ? 'bg-white text-[#083181] hover:bg-slate-100'
-                  : 'bg-[#083181] text-white hover:bg-[#062666]'
-              }`}>
+              <Button type="submit" loading={isSubmitting}
+                className={`min-h-11 w-full ${theme === 'light' ? 'bg-white! text-[#083181]! hover:bg-blue-50!' : ''}`}>
                 {isSubmitting
                   ? 'Aguarde...'
                   : mode === 'admin'
                     ? 'Criar conta administrativa'
-                    : mode === 'register'
-                      ? 'Criar conta de colaborador'
+                    : isRegistration
+                      ? 'Criar conta'
                       : mode === 'login'
                         ? 'Entrar'
                         : mode === 'forgot'
@@ -308,31 +339,26 @@ export const AuthView: React.FC<AuthViewProps> = ({
                           : mode === 'verify-code'
                             ? 'Validar código'
                             : 'Redefinir senha'}
-              </button>
+              </Button>
             </form>
 
             {!adminSetupRequired && (
-              <div className={`mt-5 space-y-3 text-center text-sm ${theme === 'light' ? 'text-white/75' : 'text-slate-600'}`}>
+              <div className={`mt-5 text-sm ${muted}`}>
                 {mode === 'login' && (
-                  <>
-                    <button className={`block w-full font-semibold hover:underline ${theme === 'light' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('forgot')}>
-                      Esqueceu a senha?
-                    </button>
-                    <span>
-                      Ainda não tem uma conta?{' '}
-                      <button className={`font-semibold hover:underline ${theme === 'light' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('register')}>Cadastre-se</button>
-                    </span>
-                  </>
+                  <div className={`flex flex-wrap items-center justify-between gap-2 rounded-xl p-3 ${theme === 'light' ? 'bg-white text-[#083181]' : 'bg-slate-800/70'}`}>
+                    <p>Ainda não tem conta?</p>
+                    <button type="button" disabled={isSubmitting} onClick={() => changeMode('register')} className={`${link} ${theme === 'light' ? 'text-[#083181]' : 'text-blue-300'}`}>Criar conta</button>
+                  </div>
                 )}
-                {mode === 'register' && (
+                {isRegistration && (
                   <span>
                     Já tem uma conta?{' '}
-                    <button className={`font-semibold hover:underline ${theme === 'light' ? 'text-white' : 'text-[#083181]'}`} onClick={() => changeMode('login')}>Fazer login</button>
+                    <button type="button" disabled={isSubmitting} className={cardLink} onClick={() => changeMode('login')}>Fazer login</button>
                   </span>
                 )}
                 {isRecovery && (
                   <button
-                    className={`inline-flex items-center gap-1 font-semibold hover:underline ${theme === 'light' ? 'text-white' : 'text-[#083181]'}`}
+                    type="button" disabled={isSubmitting} className={`inline-flex items-center gap-1 ${cardLink}`}
                     onClick={() => changeMode(mode === 'verify-code' ? 'forgot' : 'login')}
                   >
                     <ArrowLeft className="h-4 w-4" />
@@ -343,9 +369,10 @@ export const AuthView: React.FC<AuthViewProps> = ({
             )}
           </>
         )}
-        <nav aria-label="Informações legais" className={`mt-6 flex justify-center gap-4 text-xs ${theme === 'light' ? 'text-white/70' : 'text-slate-500'}`}>
-          <a className="hover:underline" href="/politica-de-privacidade">Política de Privacidade</a>
-          <a className="hover:underline" href="/termos-de-servico">Termos de Serviço</a>
+        <nav aria-label="Informações legais" className={`mt-5 flex flex-wrap gap-x-4 gap-y-2 border-t border-white/25 pt-4 text-xs dark:border-slate-700 ${muted}`}>
+          <a className="underline-offset-4 hover:underline" href="/politica-de-privacidade">Privacidade</a>
+          <a className="underline-offset-4 hover:underline" href="/termos-de-servico">Termos de serviço</a>
+          {supportEmail && <a className="underline-offset-4 hover:underline" href={`mailto:${supportEmail}`}>Suporte</a>}
         </nav>
       </section>
     </main>

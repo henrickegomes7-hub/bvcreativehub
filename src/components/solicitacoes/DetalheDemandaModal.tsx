@@ -1,24 +1,31 @@
+import { apiClient } from '../../services/apiClient';
+import { REQUIRED_CHECKLIST, canReview } from '../../utils/requestRules';
 import React, { useState } from 'react';
 import { 
   CreativeRequest, 
   UserProfile, 
   RequestStatus, 
+  ApprovalInput,
   ApprovalDecision 
 } from '../../types';
 import { Modal } from '../ui/Modal';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
-import { getSlaStatus } from '../../utils/sla';
-import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, canTransition } from '../../utils/workflow';
+import { RequestTimeline } from './RequestTimeline';
+import { getRequestSla } from '../../utils/sla';
+import { APPROVAL_LABELS, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, canTransition } from '../../utils/workflow';
 import { 
   CheckCircle2, 
   MessageSquare, 
   FileText,
+  History,
   Send,
   ShieldCheck
 } from 'lucide-react';
 
 interface DetalheDemandaModalProps {
+  initialApproval: boolean;
+  onRefresh: (request: CreativeRequest)=>void;
   request: CreativeRequest | null;
   isOpen: boolean;
   onClose: () => void;
@@ -37,17 +44,12 @@ interface DetalheDemandaModalProps {
     resolved: boolean;
     version_number?: number;
   }) => void;
-  onSubmitApproval: (requestId: string, approvalData: {
-    decision: ApprovalDecision;
-    reviewer_id: string;
-    reviewer_name: string;
-    reviewer_role: UserProfile['role'];
-    feedback: string;
-    checklist: { item: string; checked: boolean }[];
-  }) => void;
+  onSubmitApproval: (requestId: string, approval: ApprovalInput) => Promise<boolean>;
 }
 
 export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
+  initialApproval,
+  onRefresh,
   request,
   isOpen,
   onClose,
@@ -59,7 +61,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
   onAddComment,
   onSubmitApproval,
 }) => {
-  const [activeTab, setActiveTab] = useState<'briefing' | 'comments' | 'approval'>('briefing');
+  const [activeTab, setActiveTab] = useState<'briefing' | 'comments' | 'approval' | 'history'>(initialApproval?'approval':'briefing');
 
   // New Comment Form State
   const [commentText, setCommentText] = useState('');
@@ -67,17 +69,14 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
   // Approval Form State
   const [approvalDecision, setApprovalDecision] = useState<ApprovalDecision>('approved');
+  const [submitting, setSubmitting] = useState(false);
+  const [reference,setReference]=useState('');
   const [approvalFeedback, setApprovalFeedback] = useState('');
-  const [checklist, setChecklist] = useState([
-    { item: 'Logotipo oficial do Grupo BV com área de respiro correta', checked: true },
-    { item: 'Cores estritamente aderentes à paleta oficial BV (#083181 / #c56a2d / #a0b900)', checked: true },
-    { item: 'Tarja legal de crédito / BACEN conforme regulamento', checked: true },
-    { item: 'Ortografia, acentuação e clareza da chamada (CTA)', checked: true },
-  ]);
+  const [checklist, setChecklist] = useState(() => REQUIRED_CHECKLIST.map(item=>({item,checked:false})));
 
   if (!request) return null;
 
-  const sla = getSlaStatus(request.deadline, request.status === 'approved');
+  const sla = getRequestSla(request);
 
   const handlePostComment = (e: React.FormEvent) => {
     e.preventDefault();
@@ -98,26 +97,32 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
     setIsAdjustment(false);
   };
 
-  const handleApprovalSubmit = (e: React.FormEvent) => {
+  const handleApprovalSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    onSubmitApproval(request.id, {
+    if (submitting) return;
+    setSubmitting(true);
+    const saved = await onSubmitApproval(request.id, {
       decision: approvalDecision,
-      reviewer_id: currentUser.id,
-      reviewer_name: currentUser.name,
-      reviewer_role: currentUser.role,
-      feedback: approvalFeedback.trim() || (approvalDecision === 'approved' ? 'Aprovado sem ressalvas.' : 'Ajustes solicitados conforme checklist.'),
+      feedback: approvalFeedback.trim() || APPROVAL_LABELS[approvalDecision],
       checklist,
+      delivery_reference:reference.trim(),
     });
+    setSubmitting(false);
+    if (saved) {setApprovalFeedback('');setReference('');}
   };
 
   return (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title=""
+      title={request.title}
       maxWidth="5xl"
     >
       <div className="space-y-6">
+        {request.status==='approved' && !request.approvals.some(a=>a.decision!=='changes_requested') && <p>Conclusão legada sem parecer registrado.</p>}
+        {request.archived_at && <p>Demanda arquivada.</p>}
+        {isAdmin && !request.archived_at && <label>Aprovador <select value={request.approver_id ?? ''} onChange={async e=>{try{onRefresh((await apiClient.assignApprover(request.id,e.target.value||null)).request);}catch(error){alert(error instanceof Error ? error.message : "Não foi possível salvar a alteração.");}}}><option value="">Sem aprovador delegado</option>{users.filter(u=>u.active!==false && u.role==='art_director').map(u=><option key={u.id} value={u.id}>{u.name}</option>)}</select></label>}
+        {!request.archived_at && (isAdmin || canReview(currentUser,request)) && <div className="flex gap-2">{(['reopen','archive'] as const).filter(action=>action==='reopen'?request.status==='approved':isAdmin).map(action=><Button key={action} onClick={async()=>{const reason=window.prompt('Informe o motivo');if(!reason?.trim())return;try{onRefresh((await apiClient.lifecycle(request.id,action,reason)).request);onClose();}catch(error){alert(error instanceof Error ? error.message : "Não foi possível salvar a alteração.");}}}>{action==='reopen'?'Reabrir':'Arquivar'}</Button>)}</div>}
         {/* Header Bar */}
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-slate-200 dark:border-slate-800">
           <div>
@@ -127,23 +132,26 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
               </span>
               <span 
                 className="text-xs font-semibold px-2.5 py-0.5 rounded-full text-white"
-                style={{ backgroundColor: STATUS_COLORS[request.status] }}
+                style={{ backgroundColor: STATUS_COLORS[request.status], color:request.status==='approved'?'#14213D':undefined }}
               >
                 {STATUS_LABELS[request.status]}
               </span>
               <Badge variant={request.priority === 'urgent' ? 'danger' : 'neutral'}>
                 Prioridade {PRIORITY_LABELS[request.priority]}
               </Badge>
-              <Badge variant={sla.status === 'overdue' ? 'danger' : sla.status === 'critical' ? 'warning' : 'success'} dot>
+              <Badge variant={sla.isOverdue ? 'danger' : sla.status === 'critical' ? 'warning' : sla.status === 'unknown' ? 'neutral' : 'success'} dot>
                 {sla.label}
               </Badge>
             </div>
+            {request.status === 'approved' && request.completed_at && (
+              <p className="text-xs text-slate-500 dark:text-slate-400">Concluída em {new Date(request.completed_at).toLocaleString('pt-BR')}</p>
+            )}
             <h2 className="text-xl font-bold text-slate-900 dark:text-white tracking-tight">{request.title}</h2>
           </div>
 
           {/* Quick Status Advance Button */}
           <div className="flex items-center gap-2">
-            {isAdmin && request.status !== 'approved' && (
+            {(isAdmin || currentUser.role==='designer') && !request.archived_at && request.status !== 'approved' && (
               <select
                 value={request.status}
                 onChange={(e) => {
@@ -153,6 +161,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                     alert(check.reason);
                     return;
                   }
+                  if(target==='approved'){setActiveTab('approval');return;}
                   onUpdateStatus(request.id, target);
                 }}
                 className="text-xs font-semibold px-3 py-1.5 bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 rounded-lg text-slate-700 dark:text-slate-200 hover:bg-slate-50 dark:hover:bg-slate-800 focus:outline-none"
@@ -161,16 +170,17 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                 <option value="in_progress">2. Em Produção</option>
                 <option value="review">3. Revisão Criativa / QA</option>
                 <option value="client_approval">4. Aprovação do Solicitante</option>
-                <option value="approved">5. Concluído & Aprovado</option>
+                {canReview(currentUser,request) && ['review','client_approval'].includes(request.status) && <option value="approved">Registrar aprovação</option>}
               </select>
             )}
           </div>
         </div>
 
         {/* Navigation Tabs */}
-        <div className="flex items-center gap-2 border-b border-slate-200 dark:border-slate-800">
+        <div className="flex flex-wrap items-center gap-x-2 border-b border-slate-200 dark:border-slate-800">
           <button
             onClick={() => setActiveTab('briefing')}
+            aria-pressed={activeTab === 'briefing'}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-all ${
               activeTab === 'briefing'
                 ? 'border-[#083181] text-[#083181] dark:border-[#a0b900] dark:text-[#e8dda5]'
@@ -183,6 +193,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
 
           <button
             onClick={() => setActiveTab('comments')}
+            aria-pressed={activeTab === 'comments'}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-all ${
               activeTab === 'comments'
                 ? 'border-[#083181] text-[#083181] dark:border-[#a0b900] dark:text-[#e8dda5]'
@@ -193,8 +204,9 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
             Ajustes & Comentários ({request.comments.length})
           </button>
 
-          {isAdmin && <button
+          {<button
             onClick={() => setActiveTab('approval')}
+            aria-pressed={activeTab === 'approval'}
             className={`flex items-center gap-1.5 px-4 py-2 text-xs font-semibold border-b-2 transition-all ${
               activeTab === 'approval'
                 ? 'border-[#083181] text-[#083181] dark:border-[#a0b900] dark:text-[#e8dda5]'
@@ -204,7 +216,18 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
             <ShieldCheck className="w-3.5 h-3.5" />
             Aprovação Formal ({request.approvals.length})
           </button>}
+          <button type="button" onClick={() => setActiveTab('history')} aria-pressed={activeTab === 'history'}
+            className={`flex items-center gap-1.5 border-b-2 px-4 py-2 text-xs font-semibold focus-visible:outline-2 focus-visible:outline-blue-500 ${
+              activeTab === 'history'
+                ? 'border-[#083181] text-[#083181] dark:border-[#a0b900] dark:text-[#e8dda5]'
+                : 'border-transparent text-slate-500 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200'
+            }`}>
+            <History aria-hidden="true" className="size-3.5" />
+            Histórico
+          </button>
         </div>
+
+        {activeTab === 'history' && <RequestTimeline request={request} />}
 
         {/* Tab 1: Briefing & Specs */}
         {activeTab === 'briefing' && (
@@ -243,6 +266,14 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                 <h4 className="text-xs font-bold text-[#083181] dark:text-[#e8dda5] uppercase tracking-wider">
                   Especificações & Prazos
                 </h4>
+                {request.briefing.print_width && request.briefing.print_height && request.briefing.print_unit && (
+                  <div>
+                    <span className="block text-[11px] font-semibold text-slate-500 dark:text-slate-400">Dimensões finais (largura × altura)</span>
+                    <p className="text-xs font-medium text-slate-800 dark:text-slate-200">
+                      {request.briefing.print_width.toLocaleString('pt-BR', { maximumFractionDigits: 15 })} × {request.briefing.print_height.toLocaleString('pt-BR', { maximumFractionDigits: 15 })} {request.briefing.print_unit}
+                    </p>
+                  </div>
+                )}
                 {request.briefing.specs && (
                   <div>
                     <span className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 block">
@@ -270,7 +301,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                         className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-xs font-semibold text-slate-800 focus:border-[#083181] focus:outline-none dark:border-slate-700 dark:bg-[#0E172E] dark:text-slate-200"
                       >
                         <option value="">Aguardando alocação</option>
-                        {users.map((user) => (
+                        {users.filter(person=>person.active!==false && ['designer','admin'].includes(person.role)).map((user) => (
                           <option key={user.id} value={user.id}>{user.name}</option>
                         ))}
                       </select>
@@ -419,7 +450,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
         )}
 
         {/* Tab 4: Aprovação Formal */}
-        {isAdmin && activeTab === 'approval' && (
+        {activeTab === 'approval' && (
           <div className="space-y-5">
             {/* Past Approvals Audit */}
             {request.approvals.length > 0 && (
@@ -434,7 +465,7 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                         <CheckCircle2 className="w-4 h-4 text-[#a0b900]" />
                         <span className="text-xs font-bold text-slate-900 dark:text-white">Parecer registrado por: {app.reviewer_name}</span>
                         <span className="text-[10px] font-mono px-2 py-0.5 bg-emerald-100 dark:bg-emerald-900/50 text-emerald-800 dark:text-emerald-300 rounded">
-                          {app.decision.toUpperCase()}
+                          {APPROVAL_LABELS[app.decision]}
                         </span>
                       </div>
                       <span className="text-[10px] text-slate-500 dark:text-slate-400">
@@ -442,108 +473,109 @@ export const DetalheDemandaModal: React.FC<DetalheDemandaModalProps> = ({
                       </span>
                     </div>
                     <p className="text-xs text-slate-700 dark:text-slate-300 italic">"{app.feedback}"</p>
+                    {app.delivery_reference && <p className="break-all text-sm">Referência: {app.delivery_reference}</p>}
                   </div>
                 ))}
               </div>
             )}
 
-            {/* Approval Action Form */}
-            <div className="p-5 bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-slate-200 dark:border-slate-800">
-              <h4 className="text-xs font-bold text-[#083181] dark:text-[#e8dda5] uppercase tracking-wider mb-3">
-                Emitir Parecer de Aprovação Formal
-              </h4>
+            {!request.archived_at && canReview(currentUser,request) && (request.status === 'review' || request.status === 'client_approval') && (
+              <fieldset disabled={submitting} className="p-5 bg-slate-50 dark:bg-[#0A1329] rounded-xl border border-slate-200 dark:border-slate-800">
+                <h4 className="text-xs font-bold text-[#083181] dark:text-[#e8dda5] uppercase tracking-wider mb-3">
+                  Emitir Parecer de Aprovação Formal
+                </h4>
 
-              <form onSubmit={handleApprovalSubmit} className="space-y-4">
-                {/* Decision Radio */}
-                <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
-                  <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
-                    approvalDecision === 'approved' ? 'bg-emerald-50/70 dark:bg-[#083181]/30 border-[#a0b900] ring-1 ring-[#a0b900]' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="approved"
-                      checked={approvalDecision === 'approved'}
-                      onChange={() => setApprovalDecision('approved')}
-                      className="text-[#a0b900] focus:ring-[#a0b900]"
-                    />
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Aprovar sem Ressalvas</span>
-                  </label>
+                <form onSubmit={handleApprovalSubmit} className="space-y-4">
+                  {/* Decision Radio */}
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                    <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
+                      approvalDecision === 'approved' ? 'bg-emerald-50/70 dark:bg-[#083181]/30 border-[#a0b900] ring-1 ring-[#a0b900]' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="approved"
+                        checked={approvalDecision === 'approved'}
+                        onChange={() => setApprovalDecision('approved')}
+                        className="text-[#a0b900] focus:ring-[#a0b900]"
+                      />
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Aprovar sem Ressalvas</span>
+                    </label>
 
-                  <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
-                    approvalDecision === 'approved_with_notes' ? 'bg-amber-50 dark:bg-amber-950/30 border-[#c56a2d] ring-1 ring-[#c56a2d]' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="approved_with_notes"
-                      checked={approvalDecision === 'approved_with_notes'}
-                      onChange={() => setApprovalDecision('approved_with_notes')}
-                      className="text-[#c56a2d] focus:ring-[#c56a2d]"
-                    />
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Aprovar com Ressalvas</span>
-                  </label>
+                    <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
+                      approvalDecision === 'approved_with_notes' ? 'bg-amber-50 dark:bg-amber-950/30 border-[#c56a2d] ring-1 ring-[#c56a2d]' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="approved_with_notes"
+                        checked={approvalDecision === 'approved_with_notes'}
+                        onChange={() => setApprovalDecision('approved_with_notes')}
+                        className="text-[#c56a2d] focus:ring-[#c56a2d]"
+                      />
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Aprovar com Ressalvas</span>
+                    </label>
 
-                  <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
-                    approvalDecision === 'changes_requested' ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-500 ring-1 ring-rose-500' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
-                  }`}>
-                    <input
-                      type="radio"
-                      name="decision"
-                      value="changes_requested"
-                      checked={approvalDecision === 'changes_requested'}
-                      onChange={() => setApprovalDecision('changes_requested')}
-                      className="text-rose-500 focus:ring-rose-500"
-                    />
-                    <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Solicitar Ajustes</span>
-                  </label>
-                </div>
-
-                {/* Compliance Checklist */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
-                    Checklist de Conformidade de Marca
-                  </label>
-                  <div className="space-y-2">
-                    {checklist.map((item, idx) => (
-                      <label key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={item.checked}
-                          onChange={(e) => {
-                            const updated = [...checklist];
-                            updated[idx].checked = e.target.checked;
-                            setChecklist(updated);
-                          }}
-                          className="rounded text-[#083181] focus:ring-[#083181]"
-                        />
-                        <span>{item.item}</span>
-                      </label>
-                    ))}
+                    <label className={`p-3 rounded-xl border cursor-pointer flex items-center gap-2 transition-all ${
+                      approvalDecision === 'changes_requested' ? 'bg-rose-50 dark:bg-rose-950/30 border-rose-500 ring-1 ring-rose-500' : 'bg-white dark:bg-[#0E172E] border-slate-200 dark:border-slate-700'
+                    }`}>
+                      <input
+                        type="radio"
+                        name="decision"
+                        value="changes_requested"
+                        checked={approvalDecision === 'changes_requested'}
+                        onChange={() => setApprovalDecision('changes_requested')}
+                        className="text-rose-500 focus:ring-rose-500"
+                      />
+                      <span className="text-xs font-semibold text-slate-800 dark:text-slate-200">Solicitar Ajustes</span>
+                    </label>
                   </div>
-                </div>
 
-                {/* Feedback note */}
-                <div>
-                  <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
-                    Parecer Técnico / Observações
-                  </label>
-                  <textarea
-                    rows={2}
-                    value={approvalFeedback}
-                    onChange={(e) => setApprovalFeedback(e.target.value)}
-                    placeholder="Escreva comentários para a equipe ou observações para o relatório executivo..."
-                    className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
-                  />
-                </div>
+                  {/* Compliance Checklist */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-700 dark:text-slate-300 mb-2">
+                      Checklist de Conformidade de Marca
+                    </label>
+                    <div className="space-y-2">
+                      {checklist.map((item, idx) => (
+                        <label key={idx} className="flex items-center gap-2 text-xs text-slate-700 dark:text-slate-300 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.checked}
+                            onChange={(e) => {
+                              setChecklist(checklist.map((entry, i) => i === idx ? { ...entry, checked: e.target.checked } : entry));
+                            }}
+                            className="rounded text-[#083181] focus:ring-[#083181]"
+                          />
+                          <span>{item.item}</span>
+                        </label>
+                      ))}
+                    </div>
+                  </div>
 
-                <div className="flex justify-end">
-                  <Button type="submit" variant="primary" icon={<ShieldCheck className="w-4 h-4" />}>
-                    Registrar Decisão no Sistema
-                  </Button>
-                </div>
-              </form>
-            </div>
+                  {/* Feedback note */}
+                  <div>
+                    <label className="block text-xs font-semibold text-slate-700 dark:text-slate-300 mb-1">
+                      Parecer Técnico / Observações
+                    </label>
+                    <textarea
+                      rows={2}
+                      value={approvalFeedback}
+                      onChange={(e) => setApprovalFeedback(e.target.value)}
+                      placeholder="Escreva comentários para a equipe ou observações para o relatório executivo..."
+                      className="w-full px-3 py-1.5 text-xs bg-white dark:bg-[#0E172E] border border-slate-300 dark:border-slate-700 text-slate-800 dark:text-slate-100 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#083181]/20 focus:border-[#083181] dark:focus:ring-[#a0b900]/30 dark:focus:border-[#a0b900]"
+                    />
+                  </div>
+
+                  <label className="block text-sm">Referência da entrega (opcional)<input className="mt-1 block w-full rounded border px-2 py-1" maxLength={2000} value={reference} onChange={e=>setReference(e.target.value)}/></label>
+                  <div className="flex justify-end">
+                    <Button type="submit" variant="primary" icon={<ShieldCheck className="w-4 h-4" />}>
+                      Registrar Decisão no Sistema
+                    </Button>
+                  </div>
+                </form>
+              </fieldset>
+            )}
           </div>
         )}
       </div>

@@ -34,7 +34,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Top Banner */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-1.5 bg-blue-50 dark:bg-[#083181]/30 text-[#083181] dark:text-blue-300 rounded-md">
@@ -54,7 +54,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({
           <select
             value={selectedSoftware}
             onChange={(e) => setSelectedSoftware(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
+            className="text-xs px-3 py-1.5 hub-field bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
           >
             <option value="all">Todos os Softwares</option>
             <option value="Figma">Figma</option>
@@ -65,7 +65,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({
           <select
             value={selectedCategory}
             onChange={(e) => setSelectedCategory(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
+            className="text-xs px-3 py-1.5 hub-field bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
           >
             <option value="all">Todas as Categorias</option>
             <option value="social">Social Media</option>
@@ -81,7 +81,7 @@ export const TemplatesView: React.FC<TemplatesViewProps> = ({
         {filtered.map((tmpl) => (
           <div
             key={tmpl.id}
-            className="bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+            className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
           >
             {/* Visual Thumbnail */}
             <div className="relative aspect-video bg-slate-100 dark:bg-[#131F3D] overflow-hidden">

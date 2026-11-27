@@ -1,73 +1,19 @@
-# Arquitetura do Projeto
+# Arquitetura do BV Creative Hub
 
-## Visão geral
+O frontend React chama a API Express na mesma origem. Em desenvolvimento, `server.ts` monta o Vite como middleware. Na Vercel, `api/index.ts` exporta a mesma aplicação e `vercel.json` define o roteamento, o diretório de build e os cabeçalhos.
 
-O BV Creative Hub é uma aplicação full-stack composta por:
+## Dados e autorização
 
-- Frontend em React + TypeScript + Vite
-- Backend em Express + TypeScript
-- Banco PostgreSQL para autenticação, usuários, departamentos e demandas
-- Middleware de autenticação e autorização centralizado
-- Rotas organizadas por domínio para facilitar manutenção
+- **PostgreSQL** armazena contas, sessões, recuperação de senha, departamentos, convites, perfis e solicitações. A solicitação usa JSONB para briefing, anexos de referência, comentários e pareceres. Eventos de workflow ficam em uma tabela de histórico associada à demanda.
+- **Sessões** usam tokens com hash e expiração. O navegador recebe um cookie HttpOnly com SameSite e Secure em produção. Senhas são derivadas com scrypt e salt.
+- **Permissões** são aplicadas na API. Solicitantes acessam suas demandas. Executores e aprovadores têm acesso às responsabilidades atribuídas e às ações permitidas de seus perfis. A administração exige o perfil e o e-mail administrativo configurado.
+- **Upload de foto** usa uma imagem JPEG processada no navegador. O servidor impõe limite de tamanho e exige a sessão da conta proprietária para acessar a imagem.
+- **E-mail** passa pela Gmail API para entrega de convites e códigos de recuperação. A auditoria de autenticação mascara endereços de e-mail nos logs.
 
-## Estrutura principal
+## Solicitações e workflow
 
-```text
-backend/
-  audit.ts              # registro de eventos de autenticação e auditoria
-  auth.ts               # helpers de validação, sessão, hash e autorização
-  authRoutes.ts         # rotas públicas de autenticação
-  usersRoutes.ts        # rotas de usuários
-  departmentsRoutes.ts  # rotas de departamentos
-  requestsRoutes.ts     # rotas de demandas e workflow
-  routes.ts             # agregador de roteadores
-  database.ts           # pool do PostgreSQL
+O frontend e a API compartilham as regras de briefing em `src/utils/requestRules.ts`. A API verifica permissões, armazena as medidas de impressos como dados estruturados e aplica transições do Kanban e regras de aprovação dentro de transações.
 
-src/
-  components/           # views e componentes por funcionalidade
-  services/             # integrações e fluxo de dados do app
-  lib/                  # utilitários e conexão com cliente externo
-  types/                # contratos TypeScript
-  utils/                # helpers e regras de negócio
-  App.tsx               # orquestração principal do frontend
-  main.tsx              # bootstrap da aplicação
+`backend/requestQueries.ts` reúne listagem paginada, filtros, métricas, exportação, histórico e avisos. A tela de detalhes apresenta a linha do tempo a partir dos eventos, comentários e pareceres persistidos. Rascunhos do formulário, preferência de tema e leitura de avisos usam armazenamento local do navegador.
 
-public/
-  assets/               # imagens e recursos visuais
-
-config/
-  examples/             # templates de env/configuração
-  metadata.json         # metadados da plataforma
-
-scripts/
-  migrate.ts            # migração e bootstrap do banco
-
-tests/
-  auth.test.ts          # testes de validação e helpers
-  auth-routes.test.ts   # testes de sessão e acesso administrativo
-```
-
-## Fluxo de autenticação
-
-1. O cliente envia email/senha para `/auth/login`.
-2. O backend valida formato e credenciais com helpers compartilhados.
-3. Uma sessão segura é criada e enviada em cookie HttpOnly.
-4. Middlewares `requireUser` e `requireAdmin` validam a sessão e autorização.
-5. Endpoints sensíveis acessam apenas dados permitidos ao role atual.
-
-## Segurança aplicada
-
-- Validação rígida de email e senha
-- Hash de senha com salt e scrypt
-- Sessões armazenadas com hash e expiração
-- Cookies com `HttpOnly` e `SameSite`
-- Regras de autorização por role e e-mail administrativo
-- Auditoria com mascaramento de e-mail em logs
-
-## Padrões de desenvolvimento
-
-- Centralizar validações em `backend/auth.ts`
-- Manter rotas por domínio em arquivos separados
-- Evitar duplicação lógica entre endpoints
-- Preferir helpers reutilizáveis em vez de validações espalhadas
-- Validar com `npm run check` antes de fechar mudanças
+As migrações da aplicação estão em `database/migrations/`. Os arquivos em `supabase/` servem como referência para o schema legado. Consulte o [guia de configuração](./SETUP.md) para instalar, migrar e validar o projeto.

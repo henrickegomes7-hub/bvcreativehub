@@ -7,7 +7,7 @@ export interface AuthUserShape {
   id: string;
   name: string;
   email: string;
-  role: 'requester' | 'admin';
+  role: 'requester' | 'designer' | 'art_director' | 'admin';
   password_hash?: string;
 }
 
@@ -16,21 +16,12 @@ export function publicUser<T extends AuthUserShape>(user: T): Omit<T, 'password_
   return safeUser;
 }
 
-const allowedEmailDomains = new Set(['gmail.com', 'hotmail.com', 'outlook.com']);
 
 export function normalizeEmail(value: unknown): string | null {
   if (typeof value !== 'string') return null;
   const normalized = value.trim().toLowerCase();
 
-  if (!/^(?=[^@]*[a-z])[a-z0-9._%+\-]+@(?:[a-z0-9\-]+\.)+[a-z]{2,}$/.test(normalized)) {
-    return null;
-  }
-
-  const [, domain] = normalized.split('@');
-  if (!domain || !allowedEmailDomains.has(domain)) {
-    return null;
-  }
-
+  if (normalized.length > 254 || !/^[a-z0-9.!#$%&'*+\/=?^_`{|}~-]+@(?:[a-z0-9-]+\.)+[a-z]{2,}$/.test(normalized)) return null;
   return normalized;
 }
 
@@ -66,9 +57,9 @@ export function sessionHash(token: string): string {
 
 export function isRoleAuthorized(
   role: string | undefined,
-  allowedRoles: Array<'requester' | 'admin'>,
+  allowedRoles: Array<'requester' | 'designer' | 'art_director' | 'admin'>,
 ): boolean {
-  return typeof role === 'string' && allowedRoles.includes(role as 'requester' | 'admin');
+  return typeof role === 'string' && allowedRoles.includes(role as 'requester' | 'designer' | 'art_director' | 'admin');
 }
 
 export const SESSION_COOKIE = 'bv_hub_session';
@@ -78,8 +69,9 @@ export interface UserRow extends QueryResultRow {
   id: string;
   name: string;
   email: string;
-  role: 'requester' | 'admin';
+  role: 'requester' | 'designer' | 'art_director' | 'admin';
   password_hash: string;
+  avatar_url?: string | null;
 }
 
 export interface AuthenticatedRequest extends Request {
@@ -122,7 +114,7 @@ export async function requireUser(req: AuthenticatedRequest, res: Response, next
       `SELECT u.id, u.name, u.email, u.role
        FROM app_sessions s
        JOIN app_users u ON u.id = s.user_id
-       WHERE s.token_hash = $1 AND s.expires_at > NOW()`,
+       WHERE s.token_hash = $1 AND s.expires_at > NOW() AND u.active`,
       [sessionHash(token)],
     );
     if (!result.rows[0]) {
@@ -132,9 +124,13 @@ export async function requireUser(req: AuthenticatedRequest, res: Response, next
     }
 
     req.user = result.rows[0];
+    if (req.user.role === 'admin' && !canAccessAdmin(req)) {
+      res.status(403).json({ error: 'Sua permissão administrativa foi revogada. Contate o suporte.' });
+      return;
+    }
     next();
   } catch (error) {
-    console.error('Erro ao validar sessão:', error);
+    console.error('Erro ao validar sessão');
     res.status(503).json({ error: 'Não foi possível validar a sessão.' });
   }
 }

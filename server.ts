@@ -4,7 +4,7 @@ import { fileURLToPath } from 'url';
 import dotenv from 'dotenv';
 import { apiRouter } from './backend/routes.js';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -14,6 +14,7 @@ const PORT = parseInt(process.env.PORT || '3000', 10);
 const isProductionLike = process.env.NODE_ENV === 'production' || Boolean(process.env.VERCEL);
 
 app.disable('x-powered-by');
+app.use('/api', (_req,res,next)=>{res.setHeader('Cache-Control','no-store');next();});
 if (process.env.VERCEL) app.set('trust proxy', 1);
 
 app.use((req, res, next) => {
@@ -48,9 +49,10 @@ async function bootstrap() {
   }
 
   if (process.env.NODE_ENV === 'production') {
-    app.use(express.static(path.join(__dirname, 'dist')));
+    const publicDirectory = path.join(__dirname, 'dist');
+    app.use(express.static(publicDirectory, { extensions: ['html'] }));
     app.get('*', (_req: Request, res: Response) => {
-      res.sendFile(path.join(__dirname, 'dist', 'index.html'));
+      res.status(404).sendFile(path.join(publicDirectory, '404.html'));
     });
   } else {
     try {

@@ -4,7 +4,7 @@ import { fileURLToPath } from 'node:url';
 import dotenv from 'dotenv';
 import { Pool } from 'pg';
 
-dotenv.config();
+dotenv.config({ quiet: true });
 
 const migrationsDirectory = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),
@@ -35,6 +35,6 @@ async function migrate() {
 }
 
 void migrate().catch((error: unknown) => {
-  console.error('Falha ao aplicar migração PostgreSQL:', error);
+  console.error('Falha ao aplicar migração PostgreSQL. Confira DATABASE_URL e as permissões da conexão.');
   process.exitCode = 1;
 });

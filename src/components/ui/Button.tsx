@@ -17,11 +17,11 @@ export const Button: React.FC<ButtonProps> = ({
   disabled,
   ...props
 }) => {
-  const baseStyles = 'inline-flex items-center justify-center font-medium rounded-lg transition-all focus:outline-none focus:ring-2 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
+  const baseStyles = 'inline-flex items-center justify-center font-semibold rounded-xl transition-[background-color,border-color,color,box-shadow,transform] duration-200 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#a0b900] disabled:opacity-50 disabled:cursor-not-allowed select-none active:scale-[0.98]';
 
   const variantStyles = {
-    primary: 'bg-[#083181] hover:bg-[#062666] text-white shadow-sm focus:ring-[#083181]',
-    accent: 'bg-[#c56a2d] hover:bg-[#ad5922] text-white shadow-sm focus:ring-[#c56a2d]',
+    primary: 'bg-[#083181] hover:bg-[#174391] text-white shadow-[0_8px_20px_-12px_#083181] dark:bg-[#2154a2] dark:hover:bg-[#2b65ba]',
+    accent: 'bg-[#c56a2d] hover:bg-[#ad5922] text-white shadow-[0_8px_20px_-12px_#c56a2d]',
     secondary: 'bg-slate-100 dark:bg-[#1E293B] hover:bg-slate-200 dark:hover:bg-[#334155] text-slate-800 dark:text-slate-100 focus:ring-slate-400',
     outline: 'border border-slate-300 dark:border-slate-700 hover:bg-slate-50 dark:hover:bg-slate-800 text-slate-700 dark:text-slate-200 focus:ring-slate-400',
     ghost: 'text-slate-600 dark:text-slate-300 hover:text-slate-900 dark:hover:text-white hover:bg-slate-100 dark:hover:bg-slate-800 focus:ring-slate-300',

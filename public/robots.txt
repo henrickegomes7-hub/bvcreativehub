@@ -1,0 +1,4 @@
+User-agent: *
+Disallow: /api/
+
+Sitemap: https://bvcreativehub1.vercel.app/sitemap.xml

@@ -2,6 +2,9 @@ import React, { useEffect, useState } from 'react';
 import { CalendarDays, ChevronLeft, ChevronRight, Clock3 } from 'lucide-react';
 
 interface DateTimePickerProps {
+  id?: string;
+  'aria-invalid'?: boolean;
+  'aria-describedby'?: string;
   value: string;
   onChange: (value: string) => void;
   error?: string;
@@ -22,7 +25,7 @@ function formatLocalDateTime(date: Date, hour: number, minute: number): string {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(hour)}:${pad(minute)}`;
 }
 
-export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange, error }) => {
+export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange, error, ...fieldProps }) => {
   const selectedDate = parseDateTime(value);
   const [isOpen, setIsOpen] = useState(false);
   const [visibleMonth, setVisibleMonth] = useState(() => {
@@ -80,12 +83,13 @@ export const DateTimePicker: React.FC<DateTimePickerProps> = ({ value, onChange,
   return (
     <div className="relative">
       <button
+        {...fieldProps}
         type="button"
         aria-haspopup="dialog"
         aria-expanded={isOpen}
         onClick={() => setIsOpen((open) => !open)}
         className={`flex w-full items-center gap-3 rounded-lg border bg-slate-50 px-3.5 py-2.5 text-left transition-colors dark:bg-[#0A1329] ${
-          error
+          error || fieldProps['aria-invalid']
             ? 'border-rose-400 focus:ring-2 focus:ring-rose-200'
             : 'border-slate-300 hover:border-[#083181] focus:border-[#083181] focus:ring-2 focus:ring-[#083181]/15 dark:border-slate-700 dark:hover:border-blue-400 dark:focus:border-blue-400 dark:focus:ring-blue-400/15'
         }`}

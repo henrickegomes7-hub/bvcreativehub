@@ -31,7 +31,7 @@ export const catalogService = {
       ? {
           ...asset,
           file_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png',
-          preview_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png',
+          preview_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5-preview.webp',
         }
       : asset);
   },

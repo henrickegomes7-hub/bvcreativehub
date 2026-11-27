@@ -4,12 +4,11 @@ import {
   Department, 
   UserProfile 
 } from '../../types';
-import { calculateProductivityMetrics, STATUS_LABELS, STATUS_COLORS } from '../../utils/workflow';
+import { formatMetric, calculateProductivityMetrics, STATUS_LABELS, STATUS_COLORS } from '../../utils/workflow';
 import { getSlaStatus } from '../../utils/sla';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
 import { 
-  Clock, 
   AlertCircle, 
   CheckCircle2, 
   Layers, 
@@ -17,7 +16,7 @@ import {
   ArrowUpRight, 
   ChevronRight,
   ShieldCheck,
-  Calendar
+  UserRound,
 } from 'lucide-react';
 import { 
   BarChart, 
@@ -35,36 +34,44 @@ import {
 } from 'recharts';
 
 interface DashboardViewProps {
+  metricsOverride?: import('../../types').DashboardMetrics;
   requests: CreativeRequest[];
   departments: Department[];
   currentUser: UserProfile;
   onSelectRequest: (id: string) => void;
+  onOpenAttention: (attention: 'approval' | 'critical' | 'unassigned') => void;
   onNavigateToTab: (tab: 'solicitacoes' | 'kanban' | 'aprovacoes' | 'relatorios') => void;
 }
 
 export const DashboardView: React.FC<DashboardViewProps> = ({
+  metricsOverride,
   requests,
   departments,
   currentUser,
   onSelectRequest,
   onNavigateToTab,
+  onOpenAttention,
 }) => {
-  const metrics = calculateProductivityMetrics(
+  const metrics = metricsOverride ?? calculateProductivityMetrics(
     requests,
     departments.map(d => ({ id: d.id, name: d.name, color: d.color }))
   );
 
-  const pendingApprovals = requests.filter(r => r.status === 'client_approval');
   const criticalSlaRequests = requests
-    .filter(r => r.status !== 'approved')
+    .filter(r => r.status !== 'approved' && !r.archived_at)
     .map(r => ({ request: r, sla: getSlaStatus(r.deadline, false) }))
-    .filter(item => item.sla.status === 'critical' || item.sla.status === 'overdue')
-    .slice(0, 4);
+    .filter(item => item.sla.status === 'critical' || item.sla.status === 'overdue');
+
+  const attention = [
+    { id: 'approval', label: 'Aprovações pendentes', count: metrics.inReviewRequests, icon: ShieldCheck, action: 'Ver demandas em aprovação' },
+    { id: 'critical', label: 'Prazos em risco', count: metrics.criticalDeadlineRequests, icon: AlertCircle, action: 'Ver prazos em risco' },
+    { id: 'unassigned', label: 'Sem responsável', count: metrics.unassignedRequests, icon: UserRound, action: 'Ver demandas sem responsável' },
+  ] as const;
 
   return (
     <div className="space-y-6">
       {/* Welcome Banner - Azul #083181 conforme identidade visual BV */}
-      <div className="bg-[#083181] rounded-2xl p-6 text-white shadow-xl relative overflow-hidden border border-[#083181]">
+      <div className="bg-[#083181] rounded-2xl p-4 text-white sm:p-6 shadow-xl relative overflow-hidden border border-[#083181]">
         {/* Decorative subtle brand accents in Laranja #c56a2d and Verde #a0b900 */}
         <div className="absolute right-0 top-0 bottom-0 w-1/3 bg-[radial-gradient(circle_at_top_right,rgba(197,106,45,0.25),transparent_70%)] pointer-events-none" />
         <div className="absolute -left-10 -bottom-10 w-44 h-44 bg-[#a0b900]/15 rounded-full blur-2xl pointer-events-none" />
@@ -73,23 +80,17 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           <div className="flex items-start gap-4">
             <div className="w-14 h-14 rounded-2xl bg-white/10 border border-white/20 p-2 shrink-0 flex items-center justify-center shadow-md backdrop-blur-xs">
               <img
-                src="/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png"
+                src="/assets/bv-mark.png"
                 alt="Logo Grupo BV"
                 className="w-full h-full object-contain"
               />
             </div>
             <div>
-              <div className="flex items-center gap-2 mb-1">
-                <span className="px-2.5 py-0.5 rounded-full text-[11px] font-semibold bg-white/15 text-[#e8dda5] border border-[#e8dda5]/30 backdrop-blur-xs">
-                  Hub Criativo Grupo BV
-                </span>
-                <span className="text-xs text-white/70">Atualizado em tempo real</span>
-              </div>
               <h2 className="text-2xl font-bold tracking-tight text-white">
-                Olá, {currentUser.name}! 👋
+                Olá, {currentUser.name.trim().split(/\s+/)[0]}! 👋
               </h2>
               <p className="text-xs text-white/90 mt-1 max-w-xl">
-                Central de operações do departamento criativo. Existem <strong className="text-[#e8dda5] font-semibold">{pendingApprovals.length} demandas</strong> aguardando aprovação e <strong className="text-[#e8dda5] font-semibold">{criticalSlaRequests.length} com prazo crítico</strong>.
+                Central de operações do departamento criativo. Existem <strong className="text-[#e8dda5] font-semibold">{metrics.inReviewRequests} demandas</strong> aguardando aprovação e <strong className="text-[#e8dda5] font-semibold">{criticalSlaRequests.length} com prazo crítico</strong>.
               </p>
             </div>
           </div>
@@ -107,10 +108,28 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
       </div>
 
-      {/* KPI Cards Grid */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      <section aria-labelledby="dashboard-attention" className="space-y-3">
+        <h3 id="dashboard-attention" className="text-base font-bold text-slate-900 dark:text-white">Prioridades da equipe</h3>
+        <div className="grid gap-3 md:grid-cols-3">
+          {attention.map(({ id, label, count, icon: Icon, action }) => (
+            <button key={id} type="button" onClick={() => onOpenAttention(id)} aria-label={action + ', ' + count}
+              className="hub-panel group rounded-xl border border-slate-200 bg-white p-4 text-left shadow-sm hover:border-blue-400 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-[#1F3057] dark:bg-[#0E172E]">
+              <div className="flex items-center justify-between gap-3">
+                <span className="font-semibold text-slate-800 dark:text-slate-100">{label}</span>
+                <Icon aria-hidden="true" className="size-5 shrink-0 text-[#083181] dark:text-blue-300" />
+              </div>
+              <div className="mt-2 flex items-end justify-between gap-3">
+                <span className="text-3xl font-bold tabular-nums text-slate-900 dark:text-white">{count}</span>
+                <ArrowUpRight aria-hidden="true" className="size-4 shrink-0 text-slate-500 group-hover:text-blue-600 dark:text-slate-300" />
+              </div>
+            </button>
+          ))}
+        </div>
+      </section>
+
+      <div className="grid gap-4 sm:grid-cols-2">
         {/* Card 1: Total Demandas */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Demandas Ativas</span>
             <div className="p-2 bg-blue-50 dark:bg-[#083181]/20 rounded-lg text-[#083181] dark:text-blue-300">
@@ -118,57 +137,15 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white">{metrics.totalRequests}</span>
-            <span className="text-xs font-medium text-[#6b7b00] dark:text-[#a0b900] flex items-center">
-              <TrendingUp className="w-3 h-3 mr-0.5" /> +12% no mês
-            </span>
+            <span className="text-3xl font-bold text-slate-900 dark:text-white">{metrics.totalRequests - metrics.completedRequests}</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            {metrics.completedRequests} concluídas no ciclo atual
-          </p>
-        </div>
-
-        {/* Card 2: Prazos Críticos / Em Risco */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Prazos em Risco</span>
-            <div className="p-2 bg-orange-50 dark:bg-[#c56a2d]/20 rounded-lg text-[#c56a2d]">
-              <AlertCircle className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-[#c56a2d]">{criticalSlaRequests.length}</span>
-            <span className="text-xs text-slate-400">demandas com &lt; 24h</span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Requerem priorização imediata
-          </p>
-        </div>
-
-        {/* Card 3: Em Aprovação */}
-        <div 
-          onClick={() => onNavigateToTab('aprovacoes')}
-          className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-[#083181] dark:hover:border-blue-400 cursor-pointer transition-all group"
-        >
-          <div className="flex items-center justify-between">
-            <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Em Aprovação</span>
-            <div className="p-2 bg-blue-50 dark:bg-[#083181]/25 rounded-lg text-[#083181] dark:text-blue-300 group-hover:scale-105 transition-transform">
-              <ShieldCheck className="w-4 h-4" />
-            </div>
-          </div>
-          <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white">{metrics.inReviewRequests}</span>
-            <span className="text-xs font-semibold text-[#083181] dark:text-blue-300 flex items-center group-hover:underline">
-              Avaliar <ArrowUpRight className="w-3 h-3 ml-0.5" />
-            </span>
-          </div>
-          <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Aguardando feedback formal
+            {metrics.completedRequests} concluídas no total
           </p>
         </div>
 
         {/* Card 4: Taxa de Aprovação de Primeira */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-slate-400 dark:hover:border-slate-600 transition-all">
           <div className="flex items-center justify-between">
             <span className="text-xs font-semibold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aprovação 1ª Versão</span>
             <div className="p-2 bg-emerald-50 dark:bg-[#a0b900]/20 rounded-lg text-[#6b7b00] dark:text-[#a0b900]">
@@ -176,11 +153,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
             </div>
           </div>
           <div className="mt-3 flex items-baseline gap-2">
-            <span className="text-3xl font-bold text-slate-900 dark:text-white">{metrics.firstTimeApprovalRate}%</span>
+            <span className="text-3xl font-bold text-slate-900 dark:text-white">{formatMetric(metrics.firstTimeApprovalRate, '%')}</span>
             <span className="text-xs font-medium text-[#6b7b00] dark:text-[#a0b900]">Meta: 80%</span>
           </div>
           <p className="text-[11px] text-slate-500 dark:text-slate-400 mt-1">
-            Tempo médio de entrega: {metrics.avgTurnaroundHours}h
+            Tempo médio de entrega: {formatMetric(metrics.avgTurnaroundHours, 'h')}
           </p>
         </div>
       </div>
@@ -188,11 +165,11 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
       {/* Main Charts Row */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left Chart: Demandas por Departamento */}
-        <div className="lg:col-span-2 bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm">
+        <div className="lg:col-span-2 hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm">
           <div className="flex items-center justify-between mb-4">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Volume por Departamento Solicitante</h3>
-              <p className="text-xs text-slate-500 dark:text-slate-400">Distribuição das demandas ativas do Grupo BV</p>
+              <p className="text-xs text-slate-500 dark:text-slate-400">Distribuição das demandas do Grupo BV</p>
             </div>
             <span className="text-xs text-slate-400 font-mono">Total: {requests.length}</span>
           </div>
@@ -218,7 +195,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
         </div>
 
         {/* Right Chart: Pipeline por Status */}
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col justify-between">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col justify-between">
           <div>
             <div className="flex items-center justify-between mb-2">
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Funil de Produção</h3>
@@ -257,14 +234,14 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
 
           <div className="pt-4 border-t border-slate-100 dark:border-slate-800 mt-4 flex items-center justify-between text-xs text-slate-500 dark:text-slate-400">
             <span>Taxa de SLA Cumprido</span>
-            <span className="font-bold text-[#6b7b00] dark:text-[#a0b900]">{metrics.onTimeDeliveryRate}%</span>
+            <span className="font-bold text-[#6b7b00] dark:text-[#a0b900]">{formatMetric(metrics.onTimeDeliveryRate, '%')}</span>
           </div>
         </div>
       </div>
 
       {/* Critical SLA & Urgent Demands Banner */}
       {criticalSlaRequests.length > 0 && (
-        <div className="bg-white dark:bg-[#0E172E] rounded-xl border border-amber-200 dark:border-amber-900/60 shadow-xs overflow-hidden">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl border border-amber-200 dark:border-amber-900/60 shadow-xs overflow-hidden">
           <div className="px-5 py-3.5 bg-amber-50/60 dark:bg-amber-950/30 border-b border-amber-200/80 dark:border-amber-900/50 flex items-center justify-between">
             <div className="flex items-center gap-2 text-amber-900 dark:text-amber-200">
               <AlertCircle className="w-4 h-4 text-[#c56a2d]" />
@@ -274,7 +251,7 @@ export const DashboardView: React.FC<DashboardViewProps> = ({
           </div>
 
           <div className="divide-y divide-slate-100 dark:divide-slate-800">
-            {criticalSlaRequests.map(({ request, sla }) => (
+            {criticalSlaRequests.slice(0, 4).map(({ request, sla }) => (
               <div 
                 key={request.id} 
                 onClick={() => onSelectRequest(request.id)}

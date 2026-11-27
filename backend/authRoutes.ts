@@ -1,7 +1,7 @@
 import { randomBytes, randomInt, randomUUID, scrypt as scryptCallback, timingSafeEqual } from 'node:crypto';
 import { Router } from 'express';
 import rateLimit from 'express-rate-limit';
-import type { QueryResultRow } from 'pg';
+import type { PoolClient, QueryResultRow } from 'pg';
 import {
   publicUser,
   normalizeEmail,
@@ -16,8 +16,9 @@ import {
   createSession,
   sessionCookie,
 } from './auth.js';
+import { sendMail } from './mail.js';
 import { logAuthEvent } from './audit.js';
-import { getPool, isDatabaseConfigured } from './database.js';
+import { databaseErrorCode, ensureDatabaseSchema, getPool, isDatabaseConfigured } from './database.js';
 
 interface UserRow extends QueryResultRow {
   id: string;
@@ -27,7 +28,7 @@ interface UserRow extends QueryResultRow {
   password_hash: string;
 }
 
-function hashPassword(password: string): Promise<string> {
+export function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16);
   return deriveKey(password, salt, 64).then((key) => `${salt.toString('hex')}:${key.toString('hex')}`);
 }
@@ -60,66 +61,86 @@ const authLimiter = rateLimit({
 
 authRouter.get('/auth/status', async (_req, res) => {
   if (!isDatabaseConfigured()) {
-    res.json({ configured: false, adminSetupRequired: false });
+    res.json({ configured: false, adminSetupRequired: false, supportEmail: normalizeEmail(process.env.SUPPORT_EMAIL) });
     return;
   }
   try {
+    await ensureDatabaseSchema();
     const adminEmail = process.env.ADMIN_EMAIL?.trim().toLowerCase() ?? '';
     const result = await getPool().query<{ admin_exists: boolean }>(
       "SELECT EXISTS (SELECT 1 FROM app_users WHERE role = 'admin' AND email = $1) AS admin_exists",
       [adminEmail],
     );
-    res.json({ configured: true, adminSetupRequired: !result.rows[0]?.admin_exists });
+    res.json({ configured: true, adminSetupRequired: !result.rows[0]?.admin_exists, supportEmail: normalizeEmail(process.env.SUPPORT_EMAIL) });
   } catch (error) {
-    console.error('Erro ao consultar configuração de autenticação:', error);
-    res.status(503).json({ error: 'Banco indisponível ou migração ainda não aplicada.' });
+    console.error('Erro ao consultar configuração de autenticação:');
+    res.status(503).json({ error: 'Serviço temporariamente indisponível. Tente novamente em alguns minutos.' });
   }
 });
 
 authRouter.post('/auth/register', authLimiter, async (req, res) => {
-  const { name, email, password } = req.body ?? {};
-  if (!validCredentials(name, email, password)) {
-    logAuthEvent('register_failed', 'failure', { reason: 'invalid_credentials' });
-    res.status(400).json({ error: 'Informe nome, e-mail válido e senha com ao menos 12 caracteres.' });
-    return;
-  }
-  if (!isDatabaseConfigured()) {
-    res.status(503).json({ error: 'O banco de dados ainda não foi configurado.' });
-    return;
-  }
-
+  const { name, email, password, invitationToken } = req.body ?? {};
   const normalizedEmail = normalizeEmail(email);
-  if (!normalizedEmail) {
-    logAuthEvent('register_failed', 'failure', { reason: 'invalid_email' });
-    res.status(400).json({ error: 'Informe um e-mail válido.' });
+  if (!normalizedEmail || !validCredentials(name, email, password)) {
+    res.status(400).json({ error: 'Informe nome, e-mail válido e senha de 12 a 128 caracteres.' });
     return;
   }
-  if (normalizedEmail === process.env.ADMIN_EMAIL?.trim().toLowerCase()) {
-    logAuthEvent('register_failed', 'warning', { reason: 'admin_email_reserved' }, normalizedEmail);
+  if (normalizedEmail === normalizeEmail(process.env.ADMIN_EMAIL)) {
     res.status(403).json({ error: 'Este e-mail é reservado para a conta administrativa.' });
     return;
   }
-
-  try {
-    const result = await getPool().query<UserRow>(
-      `INSERT INTO app_users (name, email, role, password_hash)
-       VALUES ($1, $2, 'requester', $3)
-       RETURNING id, name, email, role, password_hash`,
-      [name.trim(), normalizedEmail, await hashPassword(password)],
-    );
-    await createSession(result.rows[0].id, res);
-    logAuthEvent('register', 'success', { user_id: result.rows[0].id }, normalizedEmail);
-    res.status(201).json({ user: publicUser(result.rows[0]) });
-  } catch (error) {
-    if ((error as { code?: string }).code === '23505') {
-      logAuthEvent('register_failed', 'warning', { reason: 'duplicate_email' }, normalizedEmail);
-      res.status(409).json({ error: 'Já existe uma conta com este e-mail.' });
-      return;
+  if (invitationToken === undefined) {
+    try {
+      await ensureDatabaseSchema();
+      const result = await getPool().query(
+        `INSERT INTO app_users (name, email, role, password_hash)
+         SELECT $1::text, $2::text, 'requester', $3::text
+         WHERE NOT EXISTS (
+           SELECT 1 FROM app_invitations WHERE email=$2::text AND role IN ('designer','art_director')
+             AND used_at IS NULL AND revoked_at IS NULL AND expires_at>NOW()
+         )
+         ON CONFLICT (email) DO NOTHING RETURNING id`,
+        [name.trim(), normalizedEmail, await hashPassword(password)],
+      );
+      if (!result.rowCount) {
+        res.status(409).json({ error: 'Já existe uma conta ou um cadastro iniciado para este e-mail. Tente entrar ou fale com o suporte.' });
+        return;
+      }
+      logAuthEvent('register', 'success', { user_id: result.rows[0].id }, normalizedEmail);
+      res.status(201).json({ message: 'Conta criada. Entre com seu e-mail e senha.' });
+    } catch (error) {
+      console.error('Erro ao cadastrar colaborador:', { code: databaseErrorCode(error) });
+      res.status(503).json({ error: 'Não foi possível criar a conta agora. Tente novamente mais tarde.' });
     }
-    console.error('Erro ao criar conta de funcionário:', error);
-    logAuthEvent('register_failed', 'failure', { reason: 'database_error' }, normalizedEmail);
-    res.status(503).json({ error: 'Não foi possível criar a conta.' });
+    return;
   }
+  if (typeof invitationToken !== 'string' || !/^[A-Za-z0-9_-]{43}$/.test(invitationToken)) {
+    res.status(400).json({ error: 'Convite inválido, expirado ou já utilizado.' });
+    return;
+  }
+  let client: PoolClient | undefined;
+  let failed = false;
+  try {
+    await ensureDatabaseSchema();
+    const passwordHash = await hashPassword(password);
+    client = await getPool().connect();
+    await client.query('BEGIN');
+    const invitation = await client.query(
+      'SELECT * FROM app_invitations WHERE token_hash=$1 AND email=$2 AND expires_at>NOW() AND used_at IS NULL AND revoked_at IS NULL FOR UPDATE',
+      [sessionHash(invitationToken), normalizedEmail],
+    );
+    if (!invitation.rows[0]) {
+      await client.query('ROLLBACK');
+      res.status(400).json({error:'Convite inválido, expirado ou já utilizado.'}); return;
+    }
+    await client.query("INSERT INTO app_users(name,email,role,password_hash) VALUES($1,$2,$3,$4)",[name.trim(),normalizedEmail,invitation.rows[0].role,passwordHash]);
+    await client.query('UPDATE app_invitations SET used_at=NOW() WHERE id=$1',[invitation.rows[0].id]);
+    await client.query('COMMIT');
+    res.status(201).json({message:'Conta confirmada. Entre com seu e-mail e senha.'});
+  } catch {
+    failed = true;
+    res.status(409).json({error:'Não foi possível aceitar o convite. Verifique se você já possui uma conta.'});
+  } finally { client?.release(failed); }
 });
 
 authRouter.post('/auth/bootstrap-admin', authLimiter, async (req, res) => {
@@ -133,7 +154,7 @@ authRouter.post('/auth/bootstrap-admin', authLimiter, async (req, res) => {
   const expectedToken = process.env.ADMIN_BOOTSTRAP_TOKEN;
   if (!expectedEmail || !expectedToken || expectedToken.length < 32) {
     logAuthEvent('bootstrap_admin_failed', 'failure', { reason: 'missing_server_bootstrap_config' });
-    res.status(503).json({ error: 'Configure ADMIN_EMAIL e uma ADMIN_BOOTSTRAP_TOKEN de ao menos 32 caracteres no servidor.' });
+    res.status(503).json({ error: 'A configuração inicial está indisponível. Contate a administração.' });
     return;
   }
   const normalizedEmail = normalizeEmail(email) ?? '';
@@ -162,7 +183,7 @@ authRouter.post('/auth/bootstrap-admin', authLimiter, async (req, res) => {
       res.status(409).json({ error: 'A conta administrativa já foi criada.' });
       return;
     }
-    console.error('Erro ao configurar conta administrativa:', error);
+    console.error('Erro ao configurar conta administrativa:');
     logAuthEvent('bootstrap_admin_failed', 'failure', { reason: 'database_error' }, normalizedEmail);
     res.status(503).json({ error: 'Não foi possível criar a conta administrativa.' });
   }
@@ -176,11 +197,12 @@ authRouter.post('/auth/login', authLimiter, async (req, res) => {
     return;
   }
   if (!isDatabaseConfigured()) {
-    res.status(503).json({ error: 'O banco de dados ainda não foi configurado.' });
+    res.status(503).json({ error: 'Serviço temporariamente indisponível. Contate o suporte.' });
     return;
   }
 
   try {
+    await ensureDatabaseSchema();
     const normalizedEmail = normalizeEmail(email);
     if (!normalizedEmail) {
       logAuthEvent('login_failed', 'failure', { reason: 'invalid_email' });
@@ -188,7 +210,9 @@ authRouter.post('/auth/login', authLimiter, async (req, res) => {
       return;
     }
     const result = await getPool().query<UserRow>(
-      'SELECT id, name, email, role, password_hash FROM app_users WHERE email = $1',
+      `SELECT id, name, email, role, password_hash,
+              ('/api/profile/photo/' || avatar_revision) AS avatar_url
+       FROM app_users WHERE email = $1 AND active`,
       [normalizedEmail],
     );
     const user = result.rows[0];
@@ -201,8 +225,9 @@ authRouter.post('/auth/login', authLimiter, async (req, res) => {
     logAuthEvent('login', 'success', { user_id: user.id }, normalizedEmail);
     res.json({ user: publicUser(user) });
   } catch (error) {
-    console.error('Erro ao autenticar conta:', error);
-    logAuthEvent('login_failed', 'failure', { reason: 'database_error' }, normalizeEmail(email) ?? undefined);
+    const code = databaseErrorCode(error);
+    console.error('Erro ao autenticar conta:', { code });
+    logAuthEvent('login_failed', 'failure', { reason: 'database_error', code }, normalizeEmail(email) ?? undefined);
     res.status(503).json({ error: 'Não foi possível acessar o serviço de autenticação.' });
   }
 });
@@ -216,23 +241,12 @@ authRouter.post('/auth/password-reset/request', authLimiter, async (req, res) =>
     return;
   }
   if (!isDatabaseConfigured()) {
-    res.status(503).json({ error: 'O banco de dados ainda não foi configurado.' });
+    res.status(503).json({ error: 'Serviço temporariamente indisponível. Contate o suporte.' });
     return;
   }
-  const gmailClientId = process.env.GMAIL_CLIENT_ID;
-  const gmailClientSecret = process.env.GMAIL_CLIENT_SECRET;
-  const gmailRefreshToken = process.env.GMAIL_REFRESH_TOKEN;
-  const gmailSenderEmail = process.env.GMAIL_SENDER_EMAIL;
-  if (!gmailClientId || !gmailClientSecret || !gmailRefreshToken
-      || !gmailSenderEmail || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(gmailSenderEmail)) {
-    logAuthEvent('password_reset_failed', 'failure', { reason: 'gmail_not_configured' }, normalizedEmail);
-    res.status(503).json({ error: 'O envio de e-mails não está configurado. Configure as quatro variáveis GMAIL_* no servidor.' });
-    return;
-  }
-
   try {
     const result = await getPool().query<{ id: string; email: string }>(
-      'SELECT id, email FROM app_users WHERE email = $1',
+      'SELECT id, email FROM app_users WHERE email = $1 AND active',
       [normalizedEmail],
     );
     const user = result.rows[0];
@@ -256,121 +270,18 @@ authRouter.post('/auth/password-reset/request', authLimiter, async (req, res) =>
         [user.id, pendingTokenHash, salt.toString('hex'), codeHash.toString('hex'), expiresAt],
       );
 
-      const tokenResponse = await fetch('https://oauth2.googleapis.com/token', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams({
-          client_id: gmailClientId,
-          client_secret: gmailClientSecret,
-          refresh_token: gmailRefreshToken,
-          grant_type: 'refresh_token',
-        }),
-      });
-
-      const tokenPayload: {
-        access_token?: unknown;
-        error?: unknown;
-        error_description?: unknown;
-      } = await tokenResponse.json();
-      if (!tokenResponse.ok || typeof tokenPayload.access_token !== 'string') {
-        await getPool().query(
-          'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
-          [user.id, pendingTokenHash],
-        );
-        const oauthError = typeof tokenPayload.error === 'string' ? tokenPayload.error : 'desconhecido';
-        const oauthErrorDescription = typeof tokenPayload.error_description === 'string'
-          ? tokenPayload.error_description.replace(/[\r\n]/g, ' ').slice(0, 300)
-          : 'sem descrição';
-        console.error(`Falha ao obter token da Gmail API (HTTP ${tokenResponse.status}; ${oauthError}: ${oauthErrorDescription}).`);
-        res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
-        return;
-      }
-
-      const boundary = `bvcreativehub_${randomUUID()}`;
-      const textBody = [
-        'Olá!',
-        '',
-        'Recebemos uma solicitação para redefinir a senha da sua conta no BV Creative Hub.',
-        '',
-        `Seu código de verificação é: ${code}`,
-        '',
-        'O código expira em 15 minutos e só pode ser usado uma vez.',
-        'Se você não solicitou a redefinição, ignore esta mensagem. Sua senha continuará a mesma.',
-        '',
-        'Atenciosamente,',
-        'Equipe BV Creative Hub',
-      ].join('\n');
-      const htmlBody = `<!doctype html>
-<html lang="pt-BR">
-  <body style="margin:0;padding:32px 16px;background-color:#f3f6fb;font-family:Arial,Helvetica,sans-serif;color:#14213d;">
-    <table role="presentation" width="100%" cellspacing="0" cellpadding="0" style="max-width:560px;margin:0 auto;background:#ffffff;border-radius:16px;overflow:hidden;">
-      <tr>
-        <td style="padding:28px 32px;background:#103b82;color:#ffffff;font-size:20px;font-weight:700;">BV Creative Hub</td>
-      </tr>
-      <tr>
-        <td style="padding:32px;">
-          <h1 style="margin:0 0 16px;font-size:24px;line-height:1.3;color:#14213d;">Redefinição de senha</h1>
-          <p style="margin:0 0 24px;font-size:16px;line-height:1.6;color:#43536d;">Recebemos uma solicitação para redefinir a senha da sua conta. Use o código abaixo para continuar:</p>
-          <div style="padding:18px;text-align:center;background:#f1f5fc;border:1px solid #dce5f3;border-radius:12px;color:#103b82;font-size:32px;font-weight:700;letter-spacing:8px;">${code}</div>
-          <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#43536d;">O código expira em <strong>15 minutos</strong> e só pode ser usado uma vez.</p>
-          <p style="margin:20px 0 0;font-size:14px;line-height:1.6;color:#43536d;">Se você não solicitou a redefinição, ignore esta mensagem. Sua senha continuará a mesma.</p>
-        </td>
-      </tr>
-      <tr>
-        <td style="padding:20px 32px;background:#f8faff;border-top:1px solid #e8edf5;font-size:12px;line-height:1.5;color:#68768c;">Mensagem automática de segurança do BV Creative Hub. Não responda a este e-mail.</td>
-      </tr>
-    </table>
-  </body>
-</html>`;
-      const encodeMimeBody = (body: string) => Buffer.from(body, 'utf8')
-        .toString('base64')
-        .match(/.{1,76}/g)
-        ?.join('\r\n') ?? '';
-      const encodedSubject = Buffer.from('Código para redefinir sua senha | BV Creative Hub', 'utf8')
-        .toString('base64');
-      const message = [
-        `From: BV Creative Hub <${gmailSenderEmail}>`,
-        `To: ${user.email}`,
-        `Subject: =?UTF-8?B?${encodedSubject}?=`,
-        'MIME-Version: 1.0',
-        `Content-Type: multipart/alternative; boundary="${boundary}"`,
-        '',
-        `--${boundary}`,
-        'Content-Type: text/plain; charset="UTF-8"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        encodeMimeBody(textBody),
-        `--${boundary}`,
-        'Content-Type: text/html; charset="UTF-8"',
-        'Content-Transfer-Encoding: base64',
-        '',
-        encodeMimeBody(htmlBody),
-        `--${boundary}--`,
-      ].join('\r\n');
-      const emailResponse = await fetch('https://gmail.googleapis.com/gmail/v1/users/me/messages/send', {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${tokenPayload.access_token}`,
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ raw: Buffer.from(message, 'utf8').toString('base64url') }),
-      });
-
-      if (!emailResponse.ok) {
-        await getPool().query(
-          'DELETE FROM app_password_resets WHERE user_id = $1 AND token_hash = $2',
-          [user.id, pendingTokenHash],
-        );
-        console.error(`Falha ao enviar e-mail de redefinição via Gmail API (HTTP ${emailResponse.status}).`);
-        res.status(503).json({ error: 'Não foi possível enviar o e-mail de redefinição. Tente novamente mais tarde.' });
-        return;
+      try {
+        await sendMail(user.email, 'Redefinição de senha | BV Creative Hub', `Seu código é ${code}. Expira em 15 minutos. Se você não solicitou esta alteração, ignore esta mensagem.`);
+      } catch {
+        await getPool().query('DELETE FROM app_password_resets WHERE user_id=$1 AND token_hash=$2',[user.id,pendingTokenHash]);
+        throw new Error('MAIL_FAILED');
       }
     }
 
     logAuthEvent('password_reset_requested', 'success', { user_registered: Boolean(user) }, normalizedEmail);
     res.json({ message: 'Se o e-mail estiver cadastrado, enviaremos um código de redefinição em instantes.' });
   } catch (error) {
-    console.error('Erro ao solicitar redefinição de senha:', error);
+    console.error('Erro ao solicitar redefinição de senha:');
     logAuthEvent('password_reset_failed', 'failure', { reason: 'database_or_mail_error' }, normalizedEmail);
     res.status(503).json({ error: 'Não foi possível solicitar a redefinição de senha.' });
   }
@@ -385,8 +296,10 @@ authRouter.post('/auth/password-reset/verify', authLimiter, async (req, res) => 
     return;
   }
 
-  const client = await getPool().connect();
+  let client: PoolClient | undefined;
+  let discardClient = false;
   try {
+    client = await getPool().connect();
     await client.query('BEGIN');
     const result = await client.query<{
       user_id: string;
@@ -396,7 +309,7 @@ authRouter.post('/auth/password-reset/verify', authLimiter, async (req, res) => 
       `SELECT r.user_id, r.code_salt, r.code_hash
        FROM app_password_resets r
        JOIN app_users u ON u.id = r.user_id
-       WHERE u.email = $1
+       WHERE u.email = $1 AND u.active
          AND r.expires_at > NOW()
          AND r.code_verified_at IS NULL
          AND r.attempts < 5
@@ -433,12 +346,13 @@ authRouter.post('/auth/password-reset/verify', authLimiter, async (req, res) => 
     logAuthEvent('password_reset_verified', 'success', { user_id: reset.user_id }, normalizedEmail);
     res.json({ resetToken });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Erro ao validar código de redefinição:', error);
+    // Closing the connection also rolls back any open transaction.
+    discardClient = true;
+    console.error('Erro ao validar código de redefinição:');
     logAuthEvent('password_reset_failed', 'failure', { reason: 'verification_error' }, normalizedEmail);
     res.status(503).json({ error: 'Não foi possível validar o código.' });
   } finally {
-    client.release();
+    client?.release(discardClient);
   }
 });
 
@@ -451,8 +365,10 @@ authRouter.post('/auth/password-reset/complete', authLimiter, async (req, res) =
     return;
   }
 
-  const client = await getPool().connect();
+  let client: PoolClient | undefined;
+  let discardClient = false;
   try {
+    client = await getPool().connect();
     await client.query('BEGIN');
     const result = await client.query<{ user_id: string }>(
       `SELECT user_id
@@ -469,7 +385,7 @@ authRouter.post('/auth/password-reset/complete', authLimiter, async (req, res) =
       return;
     }
 
-    await client.query('UPDATE app_users SET password_hash = $2 WHERE id = $1', [
+    await client.query('UPDATE app_users SET password_hash = $2 WHERE id = $1 AND active', [
       reset.user_id,
       await hashPassword(password),
     ]);
@@ -479,17 +395,26 @@ authRouter.post('/auth/password-reset/complete', authLimiter, async (req, res) =
     logAuthEvent('password_reset_completed', 'success', { user_id: reset.user_id });
     res.json({ message: 'Senha redefinida com sucesso.' });
   } catch (error) {
-    await client.query('ROLLBACK');
-    console.error('Erro ao redefinir senha:', error);
+    discardClient = true;
+    console.error('Erro ao redefinir senha:');
     logAuthEvent('password_reset_failed', 'failure', { reason: 'database_error' });
     res.status(503).json({ error: 'Não foi possível redefinir a senha.' });
   } finally {
-    client.release();
+    client?.release(discardClient);
   }
 });
 
-authRouter.get('/auth/me', requireUser, (req: AuthenticatedRequest, res) => {
-  res.json({ user: req.user });
+authRouter.get('/auth/me', requireUser, async (req: AuthenticatedRequest, res) => {
+  try {
+    await ensureDatabaseSchema();
+    const result = await getPool().query<{ avatar_url: string | null }>(
+      "SELECT ('/api/profile/photo/' || avatar_revision) AS avatar_url FROM app_users WHERE id=$1",
+      [req.user!.id],
+    );
+    res.json({ user: { ...req.user, avatar_url: result.rows[0]?.avatar_url ?? null } });
+  } catch {
+    res.status(503).json({ error: 'Não foi possível carregar o perfil.' });
+  }
 });
 
 authRouter.post('/auth/logout', requireUser, async (req: AuthenticatedRequest, res) => {
@@ -502,7 +427,7 @@ authRouter.post('/auth/logout', requireUser, async (req: AuthenticatedRequest, r
     res.setHeader('Set-Cookie', sessionCookie('', 0));
     res.status(204).end();
   } catch (error) {
-    console.error('Erro ao encerrar sessão:', error);
+    console.error('Erro ao encerrar sessão:');
     res.status(503).json({ error: 'Não foi possível encerrar a sessão.' });
   }
 });

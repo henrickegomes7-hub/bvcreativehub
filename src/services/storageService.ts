@@ -239,7 +239,7 @@ class StorageService {
     return list.map(a => (a.id === 'asset-001' || a.id === 'asset-002') ? {
       ...a,
       file_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png',
-      preview_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png',
+      preview_url: '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5-preview.webp',
     } : a);
   }
 

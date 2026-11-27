@@ -1,6 +1,8 @@
+import type { CreativeRequest } from '../types';
+
 export interface SlaInfo {
   hoursRemaining: number;
-  status: 'overdue' | 'critical' | 'warning' | 'normal' | 'delivered';
+  status: 'overdue' | 'critical' | 'warning' | 'normal' | 'delivered' | 'unknown';
   label: string;
   color: string;
   isOverdue: boolean;
@@ -20,9 +22,9 @@ export function getSlaStatus(
   if (isCompleted) {
     return {
       hoursRemaining: 0,
-      status: 'delivered',
-      label: 'Entregue no Prazo',
-      color: '#a0b900', // BV Verde
+      status: 'unknown',
+      label: 'Entrega sem data confirmada',
+      color: '#64748B',
       isOverdue: false,
     };
   }
@@ -31,7 +33,7 @@ export function getSlaStatus(
   const diffMs = deadline.getTime() - now.getTime();
   const hoursRemaining = Math.round((diffMs / (1000 * 60 * 60)) * 10) / 10;
 
-  if (hoursRemaining < 0) {
+  if (diffMs < 0) {
     const overdueHours = Math.abs(hoursRemaining);
     return {
       hoursRemaining,
@@ -71,6 +73,22 @@ export function getSlaStatus(
     label: days > 0 ? `${days}d ${Math.round(hoursRemaining % 24)}h restantes` : `${Math.round(hoursRemaining)}h restantes`,
     color: '#083181', // BV Azul
     isOverdue: false,
+  };
+}
+
+export function getRequestSla(request: CreativeRequest, now = new Date()): SlaInfo {
+  if (request.status !== 'approved') return getSlaStatus(request.deadline, false, now);
+
+  const finished = Date.parse(request.completed_at ?? '');
+  const deadline = Date.parse(request.completion_deadline ?? request.deadline);
+  if (!Number.isFinite(finished) || !Number.isFinite(deadline)) return getSlaStatus(request.deadline, true);
+  const late = finished > deadline;
+  return {
+    hoursRemaining: 0,
+    status: 'delivered',
+    label: late ? 'Entregue com atraso' : 'Entregue no prazo',
+    color: late ? '#DC2626' : '#a0b900',
+    isOverdue: late,
   };
 }
 

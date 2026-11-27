@@ -1,94 +1,74 @@
-# BV Creative Hub 🎨⚡
+# BV Creative Hub
 
-> Plataforma de gestão, automação e fluxo operacional para demandas criativas do Grupo BV.
+Aplicação do Grupo BV para solicitar materiais criativos e acompanhar briefing, produção, revisão, aprovação e entrega.
 
-## Visão geral
+**Produção** · [Abrir o BV Creative Hub](https://bvcreativehub1.vercel.app/) · [Verificar disponibilidade da API](https://bvcreativehub1.vercel.app/api/health)
 
-O BV Creative Hub foi pensado para centralizar e otimizar o ciclo completo de demandas criativas do Grupo BV, desde a captação do briefing até aprovação, produção, revisão e acompanhamento final. A solução combina frontend em React, backend em Express e banco PostgreSQL.
+## Funcionalidades
 
-## Destaques
+- **Acesso e perfil** — cadastro de colaborador com e-mail e confirmação de senha, login, recuperação por código enviado por e-mail e foto de perfil por upload.
+- **Solicitações** — briefing estruturado, rascunho salvo no navegador, validação de prazo e contatos de entrega e confirmação com código após o envio. Para materiais impressos, o formulário exige largura, altura e unidade.
+- **Acompanhamento** — dashboards por perfil, pesquisa, filtros, cards no celular, detalhes da demanda e atalhos para as pendências da equipe.
+- **Produção e aprovação** — Kanban, atribuição de responsável e aprovador, comentários, checklist e parecer formal. Reabertura e arquivamento registram motivo.
+- **Histórico e avisos** — linha do tempo com mudanças de etapa, atribuições, comentários e pareceres. O sino avisa o solicitante sobre ajustes e conclusão. As marcações de leitura ficam salvas no navegador.
+- **Gestão** — calendário, relatórios com indicadores de produtividade e SLA, exportação de demandas em CSV, gestão de departamentos e acessos e convites para perfis da equipe.
 
-- Gestão de demandas criativas por departamento
-- Fluxo de aprovação e acompanhamento de produção
-- Autenticação segura com sessões, validações centralizadas e controle de acesso por perfil
-- Arquitetura modular e organizada por domínio para facilitar manutenção e escalabilidade
-- Estrutura pronta para evolução em ambiente de produção
+## Perfis
 
-## Stack tecnológica
+| Perfil | Acesso |
+| --- | --- |
+| Solicitante | Cria demandas e acompanha as próprias solicitações, comentários, pareceres e avisos. |
+| Executor | Acompanha e movimenta as demandas sob sua responsabilidade. |
+| Aprovador | Revisa demandas delegadas e registra pareceres. |
+| Administrador | Gerencia demandas, departamentos, atribuições, convites e acessos. |
 
-- Frontend: React 19 + TypeScript + Vite
-- Backend: Express + TypeScript
-- Banco de dados: PostgreSQL
-- Autenticação: sessões com cookie HttpOnly e validações centralizadas
-- UI: Tailwind CSS
-- Testes: cobertura automatizada de autenticação e regras de acesso
+## Stack e estrutura
 
-## Estrutura do projeto
+React 19, TypeScript, Vite, Tailwind CSS, Express e PostgreSQL. A Vercel serve o frontend e encaminha as rotas `/api/` para a aplicação Express.
 
-```text
-backend/          # autenticação, rotas, banco e middlewares
-src/              # frontend da aplicação
-public/           # assets públicos
-config/           # metadados e exemplos de configuração
-database/         # migrações do banco
-scripts/          # utilitários e migração
-supabase/         # schema e seed legado
-tests/            # testes automatizados
-docs/             # documentação técnica do projeto
+| Caminho | Conteúdo |
+| --- | --- |
+| `src/` | Interface, cliente da API, catálogo de formatos e regras compartilhadas. |
+| `backend/` | Rotas Express, autenticação, permissões e acesso ao PostgreSQL. |
+| `api/` e `server.ts` | Pontos de entrada na Vercel e no servidor local. |
+| `database/migrations/` | Migrações do banco usado pela aplicação. |
+| `public/` | Assets, páginas legais, página 404, sitemap e robots.txt. |
+| `scripts/` e `tests/` | Migração, pacote de código-fonte e testes automatizados. |
+| `supabase/` | Schema e seeds legados. |
+
+## Desenvolvimento local
+
+Use **Node.js 22.12+**, **Bun 1.4.5** e um **PostgreSQL** separado de produção. Na primeira instalação, rode no PowerShell:
+
+```powershell
+Copy-Item .env.example .env
+bun install --frozen-lockfile
 ```
 
-## Documentação
+Preencha o arquivo `.env` conforme o [guia de configuração](./docs/SETUP.md). Em seguida:
 
-- [docs/ARCHITECTURE.md](./docs/ARCHITECTURE.md)
-- [docs/SETUP.md](./docs/SETUP.md)
-
-## Requisitos
-
-- Node.js >= 22.12.0
-- npm
-- PostgreSQL
-- Chaves de ambiente configuradas
-
-## Instalação
-
-```bash
-npm install
-npm run dev
+```powershell
+bun run db:migrate
+bun run dev
 ```
 
-## Validação
+A aplicação abre em `http://localhost:3000`. Para um banco vazio, configure `ADMIN_EMAIL` e `ADMIN_BOOTSTRAP_TOKEN` e inicialize a conta administrativa pela tela de entrada.
 
-```bash
-npm run lint
-npm test
-npm run check
+## Validação e pacote de código-fonte
+
+```powershell
+bun run check
+bun run build
+bun run package:source
 ```
 
-## Variáveis de ambiente
+`check` roda a checagem TypeScript e os testes. `build` valida o empacotamento do frontend. `package:source` gera um ZIP e um manifesto em `release/`.
 
-Crie um arquivo `.env` com as variáveis essenciais do projeto, incluindo:
+## Produção
 
-- `DATABASE_URL`
-- `ADMIN_EMAIL`
-- `ADMIN_BOOTSTRAP_TOKEN`
-- credenciais do Gmail para reset de senha
+- A aplicação está publicada com HTTPS e HSTS no endereço oficial da Vercel.
+- A configuração de produção inclui cabeçalhos de segurança, página 404, sitemap e robots.txt.
+- A Vercel registra requisições e execuções da API. Alertas e checagens periódicas de disponibilidade devem ser conferidos no ambiente de operação.
+- Domínio próprio, Google Analytics e Search Console dependem da configuração das propriedades e da verificação do domínio.
 
-Importante: nunca versionar credenciais reais em repositórios públicos. Use variáveis de ambiente seguras em produção.
-
-## Segurança e produção
-
-A base da aplicação foi estruturada com foco em segurança, incluindo:
-
-- validação centralizada de autenticação
-- controle de acesso por perfil e permissão
-- cookies com flags apropriadas para ambiente web
-- headers de segurança defensivos
-- organização do código para reduzir riscos e facilitar manutenção
-
-## Status do projeto
-
-O projeto está em estado funcional, com arquitetura organizada, documentação técnica e validação automatizada em place. Para entrega em produção, ainda é necessário configurar HTTPS, domínio, variáveis reais do ambiente e monitoramento do deploy.
-
-## Observação
-
-A arquitetura foi organizada por módulos e por domínio para melhorar manutenção, reduzir duplicação de lógica e fortalecer testabilidade e segurança.
+Mantenha variáveis privadas no gerenciador de segredos do ambiente. Consulte [Configuração e execução](./docs/SETUP.md) e [Arquitetura](./docs/ARCHITECTURE.md) para os detalhes operacionais.

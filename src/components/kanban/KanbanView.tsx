@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CreativeRequest, Department, RequestStatus, UserProfile } from '../../types';
 import { normalizeAssetFormat } from '../../constants/assetFormats';
 import { STATUS_SEQUENCE, STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS, canTransition } from '../../utils/workflow';
-import { getSlaStatus } from '../../utils/sla';
+import { getRequestSla } from '../../utils/sla';
 import { Badge } from '../ui/Badge';
 import { 
   ArrowRight, 
@@ -59,14 +59,14 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Kanban Header & Filters */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex flex-wrap items-center gap-3">
           <span className="text-xs font-semibold text-slate-500 dark:text-slate-400">Filtrar Quadro:</span>
 
           <select
             value={filterDept}
             onChange={(e) => setFilterDept(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
+            className="text-xs px-3 py-1.5 hub-field bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
           >
             <option value="all">Todos Departamentos</option>
             {departments.map(d => (
@@ -77,7 +77,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           <select
             value={filterPriority}
             onChange={(e) => setFilterPriority(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
+            className="text-xs px-3 py-1.5 hub-field bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
           >
             <option value="all">Todas Prioridades</option>
             <option value="urgent">Urgente</option>
@@ -98,7 +98,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
           return (
             <div
               key={colStatus}
-              className="bg-[#E5EAF2] dark:bg-[#0E172E]/70 rounded-xl p-3 border border-slate-300/90 dark:border-[#1F3057] flex flex-col min-h-[500px]"
+              className="hub-kanban-column bg-[#E5EAF2] dark:bg-[#0E172E]/70 rounded-xl p-3 border border-slate-300/90 dark:border-[#1F3057] flex flex-col min-h-[500px]"
             >
               {/* Column Title */}
               <div className="flex items-center justify-between pb-3 mb-2 border-b border-slate-200 dark:border-[#1F3057]">
@@ -121,15 +121,15 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                   </div>
                 ) : (
                   colRequests.map((req) => {
-                    const sla = getSlaStatus(req.deadline, req.status === 'approved');
+                    const sla = getRequestSla(req);
                     const dept = departments.find(d => d.id === req.department_id);
                     const pColors = PRIORITY_COLORS[req.priority];
 
                     return (
                       <div
                         key={req.id}
-                        onClick={() => onSelectRequest(req.id)}
-                        className="bg-white dark:bg-[#131F3D] rounded-lg p-3.5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer space-y-2.5 group relative"
+
+                        className="hub-panel bg-white dark:bg-[#131F3D] rounded-lg p-3.5 border border-slate-300/80 dark:border-[#1F3057] shadow-sm hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all cursor-pointer space-y-2.5 group relative"
                       >
                         {/* Top Meta */}
                         <div className="flex items-center justify-between text-[11px]">
@@ -145,8 +145,8 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                         </div>
 
                         {/* Title */}
-                        <h4 className="text-xs font-bold text-slate-900 dark:text-white group-hover:text-[#083181] dark:group-hover:text-blue-300 transition-colors line-clamp-2">
-                          {req.title}
+                        <h4 className="text-base font-bold text-slate-900 dark:text-white group-hover:text-[#083181] dark:group-hover:text-blue-300 transition-colors line-clamp-2">
+                          <button type="button" onClick={() => onSelectRequest(req.id)} className="text-left hover:underline">{req.title}</button>
                         </h4>
 
                         {/* Department & Format Tag */}
@@ -165,11 +165,11 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                         {/* SLA Indicator */}
                         <div className="pt-1 border-t border-slate-100 dark:border-slate-800 flex items-center justify-between text-[10px]">
                           <Badge 
-                            variant={sla.status === 'overdue' ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'} 
+                            variant={sla.isOverdue ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'}
                             size="sm"
                             dot
                           >
-                            {sla.label}
+                            <span className="text-sm">{sla.label}</span>
                           </Badge>
 
                           <div className="flex items-center gap-2 text-slate-400">
@@ -188,7 +188,7 @@ export const KanbanView: React.FC<KanbanViewProps> = ({
                               {req.assignee_name ? req.assignee_name.charAt(0) : '?'}
                             </div>
                             <span className="text-[10px] text-slate-600 dark:text-slate-400 font-medium truncate max-w-[80px]">
-                              {req.assignee_name || 'Sem responsável'}
+                              <span className="text-sm">{req.assignee_name || 'Sem responsável'}</span>
                             </span>
                           </div>
 

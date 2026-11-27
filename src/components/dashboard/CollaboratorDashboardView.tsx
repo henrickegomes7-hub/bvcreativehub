@@ -1,5 +1,5 @@
 import React from 'react';
-import { CalendarDays, CheckCircle2, Clock3, FileText, Plus, ArrowRight } from 'lucide-react';
+import { CalendarDays, CheckCircle2, Clock3, FileText, Plus, ArrowRight, MessageSquare } from 'lucide-react';
 import { CreativeRequest, UserProfile } from '../../types';
 import { STATUS_COLORS, STATUS_LABELS } from '../../utils/workflow';
 import { getSlaStatus } from '../../utils/sla';
@@ -9,7 +9,7 @@ import { Button } from '../ui/Button';
 interface CollaboratorDashboardViewProps {
   requests: CreativeRequest[];
   currentUser: UserProfile;
-  onSelectRequest: (id: string) => void;
+  onSelectRequest: (id: string, showApproval?: boolean) => void;
   onNavigateToRequests: () => void;
   onOpenNewRequest: () => void;
 }
@@ -21,7 +21,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
   onNavigateToRequests,
   onOpenNewRequest,
 }) => {
-  const myRequests = requests.filter((request) => request.requester_id === currentUser.id);
+  const myRequests = requests.filter((request) => request.requester_id === currentUser.id && !request.archived_at);
   const activeRequests = myRequests.filter((request) => request.status !== 'approved');
   const inProgressCount = myRequests.filter((request) =>
     request.status === 'in_progress' || request.status === 'review'
@@ -35,31 +35,34 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
   const recentRequests = [...myRequests]
     .sort((left, right) => new Date(right.created_at).getTime() - new Date(left.created_at).getTime())
     .slice(0, 5);
+  const requestsWithFeedback = myRequests
+    .filter(request => request.adjustments_requested)
+    .sort((left, right) => Date.parse(right.updated_at) - Date.parse(left.updated_at))
+    .slice(0, 3);
 
   const cards = [
     { label: 'Minhas solicitações', value: myRequests.length, icon: FileText, color: '#083181' },
     { label: 'Em andamento', value: inProgressCount, icon: Clock3, color: '#c56a2d' },
-    { label: 'Aguardando minha aprovação', value: awaitingMyReviewCount, icon: CheckCircle2, color: '#7C3AED' },
+    { label: 'Em aprovação', value: awaitingMyReviewCount, icon: CheckCircle2, color: '#7C3AED' },
     { label: 'Concluídas', value: completedCount, icon: CheckCircle2, color: '#6b7b00' },
   ];
 
   return (
     <div className="space-y-6">
-      <section className="relative overflow-hidden rounded-2xl border border-[#083181] bg-[#083181] p-6 text-white shadow-xl">
+      <section className="relative overflow-hidden rounded-2xl border border-[#083181] bg-[#083181] p-4 text-white shadow-xl sm:p-6">
         <div className="pointer-events-none absolute -bottom-12 -left-8 h-40 w-40 rounded-full bg-[#a0b900]/20 blur-2xl" />
         <div className="relative z-10 flex flex-col justify-between gap-5 sm:flex-row sm:items-center">
           <div>
-            <p className="mb-2 text-xs font-semibold uppercase tracking-wider text-[#e8dda5]">Meu espaço criativo</p>
-            <h2 className="text-2xl font-bold tracking-tight">Olá, {currentUser.name}!</h2>
+            <h2 className="text-2xl font-bold tracking-tight">Olá, {currentUser.name.trim().split(/\s+/)[0]}!</h2>
             <p className="mt-2 max-w-2xl text-sm text-white/85">
-              Acompanhe suas solicitações, prazos e aprovações em um só lugar.
+              {myRequests.length ? 'Acompanhe suas solicitações e próximos prazos.' : 'Envie um briefing para começar sua primeira solicitação.'}
             </p>
           </div>
           <Button
             variant="primary"
             size="sm"
             onClick={onOpenNewRequest}
-            className="shrink-0 border border-white/20 !bg-white !text-[#083181] hover:!bg-slate-100"
+            className="min-h-11 shrink-0 border border-white/20 !bg-white !text-[#083181] hover:!bg-slate-100"
           >
             <Plus className="mr-1.5 h-4 w-4" />
             Nova solicitação
@@ -67,13 +70,33 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
         </div>
       </section>
 
+      {requestsWithFeedback.length > 0 && (
+        <section aria-labelledby="request-feedback" className="hub-panel rounded-xl border border-amber-200 bg-white p-4 dark:border-amber-900/60 dark:bg-[#0E172E]">
+          <h3 id="request-feedback" className="flex items-center gap-2 font-semibold text-slate-900 dark:text-white">
+            <MessageSquare aria-hidden="true" className="size-4 text-amber-700 dark:text-amber-300" /> Ajustes solicitados
+          </h3>
+          <ul className="mt-2 divide-y divide-slate-100 dark:divide-slate-800">
+            {requestsWithFeedback.map(request => (
+              <li key={request.id}>
+                <button type="button" onClick={() => onSelectRequest(request.id, true)}
+                  className="flex min-h-11 w-full items-center justify-between gap-3 rounded-lg text-left text-sm hover:text-blue-700 focus-visible:outline-2 focus-visible:outline-blue-500 dark:hover:text-blue-300">
+                  <span className="min-w-0 truncate">{request.title}</span>
+                  <span className="shrink-0 text-xs font-medium">Ver parecer</span>
+                </button>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {myRequests.length > 0 && <>
       <section aria-label="Resumo das solicitações" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {cards.map(({ label, value, icon: Icon, color }) => (
           <button
             key={label}
             type="button"
             onClick={onNavigateToRequests}
-            className="rounded-xl border border-slate-300/80 bg-white p-5 text-left shadow-sm transition-colors hover:border-[#083181] dark:border-[#1F3057] dark:bg-[#0E172E] dark:hover:border-blue-400"
+            className="hub-panel rounded-xl border border-slate-300/80 bg-white p-5 text-left shadow-sm transition-colors hover:border-[#083181] dark:border-[#1F3057] dark:bg-[#0E172E] dark:hover:border-blue-400"
           >
             <div className="flex items-center justify-between gap-3">
               <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 dark:text-slate-400">{label}</span>
@@ -87,7 +110,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
       </section>
 
       <section className="grid grid-cols-1 gap-6 xl:grid-cols-2">
-        <div className="overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
+        <div className="overflow-hidden hub-panel rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Próximos prazos</h3>
@@ -126,7 +149,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
           )}
         </div>
 
-        <div className="overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
+        <div className="overflow-hidden hub-panel rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
           <div className="flex items-center justify-between border-b border-slate-100 px-5 py-4 dark:border-slate-800">
             <div>
               <h3 className="text-sm font-bold text-slate-900 dark:text-white">Solicitações recentes</h3>
@@ -153,7 +176,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
                   </span>
                   <span
                     className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-                    style={{ backgroundColor: STATUS_COLORS[request.status] }}
+                    style={{ backgroundColor: STATUS_COLORS[request.status], color:request.status==='approved'?'#14213D':undefined }}
                   >
                     {STATUS_LABELS[request.status]}
                   </span>
@@ -170,6 +193,7 @@ export const CollaboratorDashboardView: React.FC<CollaboratorDashboardViewProps>
           )}
         </div>
       </section>
+      </>}
     </div>
   );
 };

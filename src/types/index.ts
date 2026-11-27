@@ -14,6 +14,7 @@ export interface UserProfile {
   email: string;
   role: UserRole;
   department_id: string;
+  active?: boolean;
   avatar_url: string;
   title: string;
 }
@@ -44,6 +45,9 @@ export interface BriefingDetails {
   delivery_whatsapp?: string;
   cta_text?: string;
   specs: string;
+  print_width?: number;
+  print_height?: number;
+  print_unit?: 'mm' | 'cm' | 'm';
   mandatory_elements: string[];
   reference_links: string[];
   campaign_name?: string;
@@ -93,8 +97,11 @@ export interface RequestApproval {
   decision: ApprovalDecision;
   feedback: string;
   checklist: { item: string; checked: boolean }[];
+  delivery_reference?: string;
   created_at: string;
 }
+
+export type ApprovalInput = Pick<RequestApproval, 'decision' | 'feedback' | 'checklist' | 'delivery_reference'>;
 
 export interface CreativeRequest {
   id: string;
@@ -106,12 +113,21 @@ export interface CreativeRequest {
   requester_name: string;
   assignee_id?: string | null;
   assignee_name?: string | null;
+  approver_id?: string | null;
+  approver_name?: string | null;
+  archived_at?: string | null;
+  has_review?: boolean;
+  first_time_approved?: boolean;
+  adjustments_requested?: boolean;
+  history?: { id: string; action: string; reason: string; actor_id: string; actor_name?: string; created_at: string; snapshot: Record<string, unknown> }[];
   priority: RequestPriority;
   status: RequestStatus;
   format: AssetFormat;
   deadline: string; // ISO string
   estimated_hours: number;
   actual_hours?: number;
+  completed_at?: string | null;
+  completion_deadline?: string | null;
   created_at: string;
   updated_at: string;
   briefing: BriefingDetails;
@@ -172,10 +188,13 @@ export interface DashboardMetrics {
   completedRequests: number;
   inReviewRequests: number;
   urgentRequests: number;
-  onTimeDeliveryRate: number; // percentage (e.g. 96.5)
-  avgTurnaroundHours: number; // e.g. 18.4
-  firstTimeApprovalRate: number; // percentage (e.g. 84)
+  criticalDeadlineRequests: number;
+  unassignedRequests: number;
+  onTimeDeliveryRate: number | null;
+  avgTurnaroundHours: number | null;
+  firstTimeApprovalRate: number | null;
   requestsByDepartment: { department: string; count: number; color: string }[];
   requestsByStatus: { status: string; count: number; label: string; color: string }[];
+  requestsByAssignee?: { name: string; concluidas: number; emAndamento: number }[];
   weeklyThroughput: { day: string; criadas: number; concluidas: number }[];
 }

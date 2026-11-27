@@ -7,3 +7,10 @@ coverage/
 .aistudio/
 .env*
 !.env.example
+
+release/
+*.zip
+*.dump
+*.backup
+
+.vercel/

@@ -1,6 +1,6 @@
 import React from 'react';
 import { CreativeRequest, Department, UserProfile } from '../../types';
-import { calculateProductivityMetrics } from '../../utils/workflow';
+import { formatMetric, calculateProductivityMetrics } from '../../utils/workflow';
 import { Button } from '../ui/Button';
 import { 
   BarChart, 
@@ -20,61 +20,26 @@ import {
 import { BarChart3, Download, Printer, TrendingUp, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 
 interface RelatoriosViewProps {
+  metricsOverride?: import('../../types').DashboardMetrics;
+  filters: Record<string,string>;
   requests: CreativeRequest[];
   departments: Department[];
-  users: UserProfile[];
 }
 
 export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
+  metricsOverride,
+  filters,
   requests,
   departments,
-  users,
 }) => {
-  const metrics = calculateProductivityMetrics(
+  const metrics = metricsOverride ?? calculateProductivityMetrics(
     requests,
     departments.map((d) => ({ id: d.id, name: d.name, color: d.color }))
   );
 
-  const designers = users.filter((u) => u.role === 'designer' || u.role === 'art_director');
+  const designerStats = metrics.requestsByAssignee ?? [];
 
-  // Group by designer
-  const designerStats = designers.map((d) => {
-    const assigned = requests.filter((r) => r.assignee_id === d.id);
-    const completed = assigned.filter((r) => r.status === 'approved');
-    return {
-      name: d.name,
-      total: assigned.length,
-      concluidas: completed.length,
-      emAndamento: assigned.length - completed.length,
-    };
-  });
-
-  const handleExportCsv = () => {
-    const headers = ['Código', 'Título', 'Departamento', 'Solicitante', 'Designer', 'Prioridade', 'Status', 'SLA Estimado (h)', 'Versões'];
-    const rows = requests.map(r => {
-      const dept = departments.find(d => d.id === r.department_id)?.name || 'Geral';
-      return [
-        r.code,
-        `"${r.title.replace(/"/g, '""')}"`,
-        `"${dept}"`,
-        `"${r.requester_name}"`,
-        `"${r.assignee_name || 'Não alocado'}"`,
-        r.priority,
-        r.status,
-        r.estimated_hours,
-        r.current_version,
-      ].join(';');
-    });
-
-    const csvContent = 'data:text/csv;charset=utf-8,\uFEFF' + [headers.join(';'), ...rows].join('\n');
-    const encodedUri = encodeURI(csvContent);
-    const link = document.createElement('a');
-    link.setAttribute('href', encodedUri);
-    link.setAttribute('download', `relatorio_produtividade_bv_hub_${new Date().toISOString().split('T')[0]}.csv`);
-    document.body.appendChild(link);
-    link.click();
-    document.body.removeChild(link);
-  };
+  const handleExportCsv = () => window.location.assign('/api/requests/export?'+new URLSearchParams(filters));
 
   const handlePrint = () => {
     window.print();
@@ -83,7 +48,7 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
   return (
     <div className="space-y-6">
       {/* Header Bar */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
+      <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-5 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
           <div className="flex items-center gap-2 mb-1">
             <span className="p-1.5 bg-blue-50 dark:bg-[#083181]/30 text-[#083181] dark:text-blue-300 rounded-md">
@@ -120,36 +85,33 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
 
       {/* 4 Scorecards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        <div className="bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Cumprimento de SLA</span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[#6b7b00] dark:text-[#a0b900]">{metrics.onTimeDeliveryRate}%</span>
-            <span className="text-xs font-semibold text-[#6b7b00] dark:text-[#a0b900]">Alta Eficiência</span>
+            <span className="text-2xl font-bold text-[#6b7b00] dark:text-[#a0b900]">{formatMetric(metrics.onTimeDeliveryRate, '%')}</span>
           </div>
           <div className="w-full bg-slate-100 dark:bg-[#19274A] h-1.5 rounded-full mt-2 overflow-hidden">
-            <div className="h-full bg-[#a0b900] rounded-full" style={{ width: `${metrics.onTimeDeliveryRate}%` }} />
+            <div className="h-full bg-[#a0b900] rounded-full" style={{ width: `${metrics.onTimeDeliveryRate ?? 0}%` }} />
           </div>
         </div>
 
-        <div className="bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Tempo Médio de Ciclo</span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-slate-900 dark:text-white">{metrics.avgTurnaroundHours}h</span>
+            <span className="text-2xl font-bold text-slate-900 dark:text-white">{formatMetric(metrics.avgTurnaroundHours, 'h')}</span>
             <span className="text-xs text-slate-500 dark:text-slate-400">do briefing ao OK</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Dentro da janela planejada de 24h</p>
         </div>
 
-        <div className="bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Aprovação 1ª Versão</span>
           <div className="mt-2 flex items-baseline justify-between">
-            <span className="text-2xl font-bold text-[#c56a2d]">{metrics.firstTimeApprovalRate}%</span>
+            <span className="text-2xl font-bold text-[#c56a2d]">{formatMetric(metrics.firstTimeApprovalRate, '%')}</span>
             <span className="text-xs text-slate-500 dark:text-slate-400">sem retrabalho</span>
           </div>
-          <p className="text-[11px] text-slate-400 mt-2">Briefings bem especificados</p>
         </div>
 
-        <div className="bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-4 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <span className="text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider">Total de Entregas</span>
           <div className="mt-2 flex items-baseline justify-between">
             <span className="text-2xl font-bold text-slate-900 dark:text-white">{metrics.completedRequests}</span>
@@ -162,11 +124,11 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
       {/* Main Charts */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
         {/* Weekly Throughput */}
-        <div className="bg-white dark:bg-[#0E172E] p-5 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-5 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-1">
             Vazão Semanal da Equipe (Criadas x Concluídas)
           </h3>
-          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Volume comparativo dia a dia</p>
+          <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Últimos sete dias, incluindo hoje</p>
 
           <div className="h-64">
             <ResponsiveContainer width="100%" height="100%">
@@ -184,9 +146,9 @@ export const RelatoriosView: React.FC<RelatoriosViewProps> = ({
         </div>
 
         {/* Throughput by Designer */}
-        <div className="bg-white dark:bg-[#0E172E] p-5 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
+        <div className="hub-panel bg-white dark:bg-[#0E172E] p-5 rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs">
           <h3 className="text-xs font-bold text-slate-800 dark:text-white uppercase tracking-wider mb-1">
-            Produtividade por Designer
+            Produtividade por responsável
           </h3>
           <p className="text-xs text-slate-500 dark:text-slate-400 mb-4">Demandas atribuídas e finalizadas</p>
 

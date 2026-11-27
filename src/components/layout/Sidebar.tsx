@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef } from 'react';
 import { 
   LayoutDashboard, 
   Layers, 
@@ -26,6 +26,8 @@ interface SidebarProps {
   pendingApprovalsCount: number;
   totalActiveCount: number;
   isAdmin: boolean;
+  isRootAdmin: boolean;
+  canApprove: boolean;
   isOpen: boolean;
   onClose: () => void;
 }
@@ -36,9 +38,43 @@ export const Sidebar: React.FC<SidebarProps> = ({
   pendingApprovalsCount,
   totalActiveCount,
   isAdmin,
+  isRootAdmin,
+  canApprove,
   isOpen,
   onClose,
 }) => {
+  const panel = useRef<HTMLElement>(null);
+  const closeButton = useRef<HTMLButtonElement>(null);
+  const closeMenu = useRef(onClose);
+  closeMenu.current = onClose;
+  useEffect(() => {
+    if (!isOpen) return;
+    const desktop = window.matchMedia('(min-width: 768px)');
+    const closeOnDesktop = () => { if (desktop.matches) closeMenu.current(); };
+    if (desktop.matches) { closeMenu.current(); return; }
+    closeButton.current?.focus();
+    desktop.addEventListener('change', closeOnDesktop);
+    return () => {
+      desktop.removeEventListener('change', closeOnDesktop);
+      if (!desktop.matches) document.getElementById('hub-mobile-menu-toggle')?.focus();
+    };
+  }, [isOpen]);
+
+  const handleMenuKey = (event: React.KeyboardEvent<HTMLElement>) => {
+    if (!isOpen) return;
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      onClose();
+    } else if (event.key === 'Tab') {
+      const buttons = panel.current?.querySelectorAll<HTMLButtonElement>('button:not(:disabled)');
+      const first = buttons?.[0];
+      const last = buttons ? buttons[buttons.length - 1] : undefined;
+      if (event.shiftKey ? document.activeElement === first : document.activeElement === last) {
+        event.preventDefault();
+        (event.shiftKey ? last : first)?.focus();
+      }
+    }
+  };
   const adminSections = [
     {
       title: 'PRINCIPAL',
@@ -46,7 +82,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'dashboard' as NavTab, label: 'Dashboard', icon: LayoutDashboard },
         { id: 'solicitacoes' as NavTab, label: 'Demandas', icon: Layers, badge: totalActiveCount > 0 ? totalActiveCount : undefined },
         { id: 'kanban' as NavTab, label: 'Kanban Criativo', icon: KanbanSquare },
-        { id: 'aprovacoes' as NavTab, label: 'Portal de Aprovações', icon: CheckCircle2, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined, highlight: true },
+        ...(canApprove ? [{ id: 'aprovacoes' as NavTab, label: 'Portal de Aprovações', icon: CheckCircle2, badge: pendingApprovalsCount > 0 ? pendingApprovalsCount : undefined, highlight: true }] : []),
         { id: 'calendario' as NavTab, label: 'Calendário Editorial', icon: CalendarDays },
       ],
     },
@@ -54,7 +90,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'GESTÃO & SISTEMA',
       items: [
         { id: 'relatorios' as NavTab, label: 'Relatórios & Produtividade', icon: BarChart3 },
-        { id: 'configuracoes' as NavTab, label: 'Configurações & Acessos', icon: Settings },
+        ...(isRootAdmin ? [{ id: 'configuracoes' as NavTab, label: 'Configurações & Acessos', icon: Settings }] : []),
       ],
     },
   ];
@@ -70,18 +106,19 @@ export const Sidebar: React.FC<SidebarProps> = ({
 
   return (
     <div className={`fixed inset-0 z-40 md:relative md:inset-auto md:z-auto ${isOpen ? 'flex' : 'hidden'} md:flex`}>
-      <button
-        type="button"
+      <div
         className="absolute inset-0 bg-slate-950/60 md:hidden"
         onClick={onClose}
-        aria-label="Fechar menu"
+        aria-hidden="true"
       />
-      <aside className="relative z-10 flex h-full w-[min(18rem,85vw)] shrink-0 flex-col border-r border-[#082463] bg-[#05163D] text-slate-300 dark:border-white/10 dark:bg-[#040B1D] select-none md:h-screen md:w-64">
+      <aside id="hub-sidebar" ref={panel} role={isOpen ? 'dialog' : undefined}
+        aria-modal={isOpen || undefined} aria-label="Menu do BV Creative Hub" onKeyDown={handleMenuKey}
+        className="hub-nav relative z-10 flex h-full w-[min(18rem,85vw)] shrink-0 flex-col border-r border-[#082463] text-slate-300 select-none md:h-screen md:w-64">
       {/* Brand Header */}
-      <div className="flex h-16 items-center gap-3 border-b border-white/10 px-4">
+      <div className="flex h-20 items-center gap-3 border-b border-white/10 px-4">
         <div className="w-10 h-10 rounded-xl bg-white/10 border border-white/15 flex items-center justify-center p-1 shrink-0 overflow-hidden shadow-xs hover:border-white/30 transition-all">
           <img
-            src="/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png"
+            src="/assets/bv-mark.png"
             alt="Grupo BV"
             className="w-full h-full object-contain"
           />
@@ -94,9 +131,10 @@ export const Sidebar: React.FC<SidebarProps> = ({
           <p className="text-[10px] text-slate-400 font-medium truncate">Departamento Criativo BV</p>
         </div>
         <button
+          ref={closeButton}
           type="button"
           onClick={onClose}
-          className="ml-auto rounded-lg p-2 text-slate-300 hover:bg-white/10 md:hidden"
+          className="ml-auto grid size-11 shrink-0 place-items-center rounded-lg text-xl text-slate-300 hover:bg-white/10 focus-visible:outline-2 focus-visible:outline-sky-300 md:hidden"
           aria-label="Fechar menu"
         >
           <span aria-hidden="true">×</span>
@@ -118,7 +156,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <button
                     key={item.id}
                     onClick={() => onSelectTab(item.id)}
-                    className={`w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium transition-all ${
+                    aria-current={isActive ? 'page' : undefined}
+                    className={`hub-nav-item flex min-h-11 w-full items-center justify-between rounded-xl px-3 py-3 text-left text-sm font-medium transition-all focus-visible:outline-2 focus-visible:outline-sky-300 md:text-xs ${
                       isActive
                         ? 'bg-[#083181] text-white shadow-sm font-semibold border-l-2 border-[#a0b900]'
                         : 'text-slate-400 hover:text-white hover:bg-white/5'

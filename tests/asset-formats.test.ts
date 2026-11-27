@@ -6,6 +6,7 @@ import {
   isAssetFormat,
   normalizeAssetFormat,
   requiresCustomAssetSpecs,
+  requiresPrintDimensions,
 } from '../src/constants/assetFormats.js';
 
 test('format catalog has 16 non-empty categories', () => {
@@ -26,4 +27,13 @@ test('custom formats require manually entered specifications', () => {
   assert.ok(requiresCustomAssetSpecs('Material Não Listado'));
   assert.ok(requiresCustomAssetSpecs('Outro Formato'));
   assert.equal(requiresCustomAssetSpecs('Banner para Site'), false);
+});
+
+test('physical formats require dimensions while digital banners and screens do not', () => {
+  for (const format of ['Outdoor', 'Flyer / Panfleto', 'Banner Impresso', 'Cartaz de Evento', 'ooh_print']) {
+    assert.equal(requiresPrintDimensions(format), true);
+  }
+  for (const format of ['Banner para Site', 'Banner LinkedIn', 'Painel de LED', 'Painel Digital']) {
+    assert.equal(requiresPrintDimensions(format), false);
+  }
 });

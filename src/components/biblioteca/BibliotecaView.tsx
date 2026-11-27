@@ -132,7 +132,7 @@ export const BibliotecaView: React.FC<BibliotecaViewProps> = ({
           return (
             <div
               key={asset.id}
-              className="bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
+              className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl border border-slate-200 dark:border-[#1F3057] shadow-xs hover:border-[#083181] dark:hover:border-blue-400 hover:shadow-md transition-all overflow-hidden flex flex-col justify-between"
             >
               {/* Asset Preview Header */}
               {isColor ? (
@@ -160,7 +160,7 @@ export const BibliotecaView: React.FC<BibliotecaViewProps> = ({
                   {asset.category === 'logos' ? (
                     <div className="w-16 h-16 rounded-xl bg-[#083181] border border-white/20 flex items-center justify-center p-2 shadow-sm overflow-hidden">
                       <img
-                        src={asset.preview_url || '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5.png'}
+                        src={asset.preview_url || '/assets/aistudio/Logo_plano_BV_PNG_f061e8a5-preview.webp'}
                         alt={asset.title}
                         className="w-full h-full object-contain"
                       />
@@ -232,7 +232,7 @@ export const BibliotecaView: React.FC<BibliotecaViewProps> = ({
       {/* Modal Novo Ativo */}
       {showAddModal && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/60 backdrop-blur-xs">
-          <div className="bg-white dark:bg-[#0E172E] rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-[#1F3057] shadow-xl space-y-4">
+          <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-2xl p-6 max-w-md w-full border border-slate-200 dark:border-[#1F3057] shadow-xl space-y-4">
             <h3 className="text-base font-bold text-slate-900 dark:text-white">Cadastrar Ativo de Marca</h3>
             <form onSubmit={handleSaveAsset} className="space-y-3">
               <div>

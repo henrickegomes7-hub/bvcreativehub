@@ -1,4 +1,11 @@
-import { RequestStatus, RequestPriority, UserRole, CreativeRequest, DashboardMetrics } from '../types';
+import { getRequestSla, getSlaStatus } from './sla.js';
+import type { ApprovalDecision, RequestStatus, RequestPriority, UserRole, CreativeRequest, DashboardMetrics } from '../types';
+
+export const APPROVAL_LABELS: Record<ApprovalDecision, string> = {
+  approved: 'Aprovado sem ressalvas',
+  approved_with_notes: 'Aprovado com ressalvas',
+  changes_requested: 'Ajustes solicitados',
+};
 
 export const STATUS_SEQUENCE: RequestStatus[] = [
   'backlog',
@@ -92,52 +99,31 @@ export function canTransition(
  */
 export function calculateProductivityMetrics(
   requests: CreativeRequest[],
-  departments: { id: string; name: string; color: string }[]
+  departments: { id: string; name: string; color: string }[],
+  now = new Date(),
 ): DashboardMetrics {
   const totalRequests = requests.length;
   const completed = requests.filter(r => r.status === 'approved');
-  const inReview = requests.filter(r => r.status === 'review' || r.status === 'client_approval');
+  const active = requests.filter(r => r.status !== 'approved' && !r.archived_at);
+  const inReview = active.filter(r => r.status === 'review' || r.status === 'client_approval');
   const urgent = requests.filter(r => r.priority === 'urgent' && r.status !== 'approved');
 
-  // On-time delivery rate
-  let onTimeCount = 0;
-  let totalCompletedWithDates = 0;
-  let totalHoursSum = 0;
+  const measuredDeliveries = completed.map(r => getRequestSla(r)).filter(sla => sla.status === 'delivered');
+  const onTimeCount = measuredDeliveries.filter(sla => !sla.isOverdue).length;
+  const onTimeDeliveryRate = measuredDeliveries.length
+    ? Math.round(1000 * onTimeCount / measuredDeliveries.length) / 10
+    : null;
 
-  completed.forEach(r => {
-    if (r.deadline && r.updated_at) {
-      const deadline = new Date(r.deadline).getTime();
-      const finished = new Date(r.updated_at).getTime();
-      if (finished <= deadline) {
-        onTimeCount++;
-      }
-      totalCompletedWithDates++;
-    }
+  const durations = completed.map(r => Date.parse(r.completed_at ?? '') - Date.parse(r.created_at))
+    .filter(ms => Number.isFinite(ms) && ms >= 0);
+  const avgTurnaroundHours = durations.length
+    ? Math.round(durations.reduce((sum, ms) => sum + ms, 0) / durations.length / 3_600_000 * 10) / 10
+    : null;
 
-    if (r.created_at && r.updated_at) {
-      const start = new Date(r.created_at).getTime();
-      const end = new Date(r.updated_at).getTime();
-      const diffHours = (end - start) / (1000 * 60 * 60);
-      if (diffHours > 0) {
-        totalHoursSum += diffHours;
-      }
-    }
-  });
-
-  const onTimeDeliveryRate = totalCompletedWithDates > 0 
-    ? Math.round((onTimeCount / totalCompletedWithDates) * 1000) / 10 
-    : 95.0;
-
-  const rawAvg = completed.length > 0 && totalHoursSum > 0
-    ? totalHoursSum / completed.length
-    : 18.5;
-  const avgTurnaroundHours = Math.round(Math.min(rawAvg, 24.0) * 10) / 10;
-
-  // First-time approval rate: requests approved where current_version <= 1
-  const firstTimeApproved = completed.filter(r => r.current_version <= 1).length;
-  const firstTimeApprovalRate = completed.length > 0
-    ? Math.round((firstTimeApproved / completed.length) * 100)
-    : 85;
+  const reviewed = completed.filter(r => r.current_version > 0 || r.has_review || r.approvals?.length);
+  const firstTimeApproved = reviewed.filter(r => (r.first_time_approved ?? r.current_version <= 1)
+    && !r.approvals?.some(a => a.decision === 'changes_requested')).length;
+  const firstTimeApprovalRate = reviewed.length ? Math.round(100 * firstTimeApproved / reviewed.length) : null;
 
   // Requests by department
   const requestsByDepartment = departments.map(d => {
@@ -160,24 +146,48 @@ export function calculateProductivityMetrics(
     };
   });
 
-  // Weekly throughput (mock realistic 7-day trend based on actual requests count)
-  const days = ['Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb', 'Dom'];
-  const weeklyThroughput = days.map((day, idx) => ({
-    day,
-    criadas: Math.max(1, Math.round((totalRequests / 7) + (idx % 2 === 0 ? 2 : -1))),
-    concluidas: Math.max(0, Math.round((completed.length / 7) + (idx % 3 === 0 ? 1 : 0))),
-  }));
+  const days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+  const byDate = new Map<string, DashboardMetrics['weeklyThroughput'][number]>();
+  for (let offset = 6; offset >= 0; offset--) {
+    const date = new Date(now);
+    date.setDate(date.getDate() - offset);
+    byDate.set(date.toDateString(), { day: days[date.getDay()], criadas: 0, concluidas: 0 });
+  }
+  for (const request of requests) {
+    const created = byDate.get(new Date(request.created_at).toDateString());
+    if (created) created.criadas++;
+    if (request.status === 'approved' && request.completed_at) {
+      const finished = byDate.get(new Date(request.completed_at).toDateString());
+      if (finished) finished.concluidas++;
+    }
+  }
+  const weeklyThroughput = [...byDate.values()];
+  const byAssignee = new Map<string, {name:string;concluidas:number;emAndamento:number}>();
+  for (const request of requests) {
+    if (!request.assignee_id || !request.assignee_name) continue;
+    const stats = byAssignee.get(request.assignee_id) ?? {name:request.assignee_name,concluidas:0,emAndamento:0};
+    if (request.status === 'approved') stats.concluidas++;
+    else stats.emAndamento++;
+    byAssignee.set(request.assignee_id,stats);
+  }
 
   return {
     totalRequests,
     completedRequests: completed.length,
     inReviewRequests: inReview.length,
     urgentRequests: urgent.length,
+    criticalDeadlineRequests: active.filter(r => ['critical', 'overdue'].includes(getSlaStatus(r.deadline, false, now).status)).length,
+    unassignedRequests: active.filter(r => !r.assignee_id).length,
     onTimeDeliveryRate,
     avgTurnaroundHours,
     firstTimeApprovalRate,
     requestsByDepartment,
     requestsByStatus,
+    requestsByAssignee: [...byAssignee.values()],
     weeklyThroughput,
   };
+}
+
+export function formatMetric(value: number | null, unit: '%' | 'h'): string {
+  return value === null ? 'Sem dados' : `${value.toLocaleString('pt-BR')}${unit}`;
 }

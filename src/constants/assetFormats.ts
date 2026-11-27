@@ -469,3 +469,24 @@ export function isAssetFormat(format: unknown): format is AssetFormat {
 export function requiresCustomAssetSpecs(format: string): boolean {
   return (CUSTOM_ASSET_FORMATS as readonly string[]).includes(format);
 }
+
+const digitalOutdoorFormats = new Set(['Painel de LED', 'Painel Digital']);
+export const PRINT_ASSET_FORMATS = [
+  ...new Set<AssetFormat>([
+    ...FORMAT_CATEGORIES[6].options,
+    ...FORMAT_CATEGORIES[7].options.filter(format => !digitalOutdoorFormats.has(format)),
+    'Banner de Evento', 'Backdrop de Evento', 'Painel de Palco', 'Painel de Fotos',
+    'Credencial de Evento', 'Crachá de Evento', 'Certificado de Participação',
+    'Sinalização de Evento', 'Placa de Orientação', 'Totem de Entrada',
+    'Painel de Patrocinadores', 'Folder de Evento', 'Cartaz de Evento',
+    'Encarte Promocional', 'Folheto de Ofertas', 'Cartaz de Preços', 'Display de Produtos',
+    'Material de Ponto de Venda (PDV)', 'Papelaria Corporativa',
+  ]),
+];
+
+const printFormats = new Set<string>(PRINT_ASSET_FORMATS);
+export const PRINT_UNITS = ['m', 'cm', 'mm'] as const;
+
+export function requiresPrintDimensions(format: unknown): boolean {
+  return typeof format === 'string' && printFormats.has(normalizeAssetFormat(format));
+}

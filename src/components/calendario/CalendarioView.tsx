@@ -52,7 +52,7 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
   return (
     <div className="space-y-4">
       {/* Header */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+      <div className="hub-panel bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-200 dark:border-[#1F3057] shadow-xs flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="p-2 bg-blue-50 dark:bg-[#083181]/30 text-[#083181] dark:text-blue-300 rounded-lg">
             <CalendarIcon className="w-5 h-5" />
@@ -91,7 +91,7 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
       </div>
 
       {/* Calendar Grid */}
-      <div className="hidden overflow-hidden rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] sm:block">
+      <div className="hidden overflow-hidden hub-panel rounded-xl border border-slate-200 bg-white shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] sm:block">
         {/* Days of Week Header */}
         <div className="grid grid-cols-7 border-b border-slate-200 dark:border-[#1F3057] bg-slate-50 dark:bg-[#131F3D] text-center text-[11px] font-bold text-slate-500 dark:text-slate-400 uppercase tracking-wider py-2.5">
           <span>Dom</span>
@@ -170,13 +170,13 @@ export const CalendarioView: React.FC<CalendarioViewProps> = ({
 
       <div className="space-y-3 sm:hidden">
         {mobileDeliveryDays.length === 0 ? (
-          <div className="rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] dark:text-slate-400">
+          <div className="hub-panel rounded-xl border border-slate-200 bg-white p-8 text-center text-sm text-slate-500 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E] dark:text-slate-400">
             Nenhuma entrega prevista para este mês.
           </div>
         ) : mobileDeliveryDays.map(({ day, requests: dayRequests }) => (
           <section
             key={day}
-            className="rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]"
+            className="hub-panel rounded-xl border border-slate-200 bg-white p-4 shadow-xs dark:border-[#1F3057] dark:bg-[#0E172E]"
           >
             <h3 className="mb-3 text-xs font-bold uppercase tracking-wide text-slate-500 dark:text-slate-400">
               {new Date(currentDate.getFullYear(), currentDate.getMonth(), day).toLocaleDateString('pt-BR', {

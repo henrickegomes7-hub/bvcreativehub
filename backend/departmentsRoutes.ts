@@ -25,7 +25,7 @@ departmentsRouter.get('/departments', requireUser, async (_req, res) => {
     );
     res.json({ departments: result.rows });
   } catch (error) {
-    console.error('Erro ao carregar departamentos:', error);
+    console.error('Erro ao carregar departamentos:');
     res.status(503).json({ error: 'Não foi possível carregar os departamentos.' });
   }
 });
@@ -61,7 +61,7 @@ departmentsRouter.post('/departments', requireUser, requireAdmin, async (req, re
       res.status(409).json({ error: 'Já existe um departamento com essa sigla.' });
       return;
     }
-    console.error('Erro ao salvar departamento:', error);
+    console.error('Erro ao salvar departamento:');
     res.status(503).json({ error: 'Não foi possível salvar o departamento.' });
   }
 });

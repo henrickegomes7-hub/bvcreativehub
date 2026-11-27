@@ -1,38 +1,21 @@
 import { randomBytes, randomUUID } from 'node:crypto';
 import { Router } from 'express';
-import { requireAdmin, requireUser, type AuthenticatedRequest } from './auth.js';
+import { canAccessAdmin, requireAdmin, requireUser, type AuthenticatedRequest } from './auth.js';
 import { getPool } from './database.js';
-import { isAssetFormat, requiresCustomAssetSpecs } from '../src/constants/assetFormats.js';
+import { validateRequest, REQUIRED_CHECKLIST } from '../src/utils/requestRules.js';
+import { getRequestHistory, requestQueries } from './requestQueries.js';
+import { ACCESS_SQL, scope, mayReview, mayProduce } from './permissions.js';
 
 export const requestsRouter = Router();
+requestsRouter.use(requestQueries);
+
+export function formatRequestCode(year: string, sequence: string): string {
+  return `BV-${year}-${sequence.padStart(3, '0')}`;
+}
 
 function validId(id: string): boolean {
   return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(id);
 }
-
-function validDeliveryContacts(briefing: Record<string, unknown>): boolean {
-  const email = briefing.delivery_email;
-  const whatsapp = briefing.delivery_whatsapp;
-  const whatsappDigits = typeof whatsapp === 'string' ? whatsapp.replace(/\D/g, '') : '';
-  return (email === undefined || email === '' || (
-    typeof email === 'string' && email.length <= 254 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
-  )) && (whatsapp === undefined || whatsapp === '' || (
-    typeof whatsapp === 'string' && whatsapp.length <= 20 && /^\+?[\d\s().-]+$/.test(whatsapp)
-    && whatsappDigits.length >= 10 && whatsappDigits.length <= 15
-  ));
-}
-
-requestsRouter.get('/requests', requireUser, async (req: AuthenticatedRequest, res) => {
-  try {
-    const result = req.user?.role === 'admin'
-      ? await getPool().query('SELECT data FROM creative_requests ORDER BY created_at DESC')
-      : await getPool().query('SELECT data FROM creative_requests WHERE requester_id = $1 ORDER BY created_at DESC', [req.user?.id]);
-    res.json({ requests: result.rows.map((row) => row.data) });
-  } catch (error) {
-    console.error('Erro ao carregar demandas:', error);
-    res.status(503).json({ error: 'Não foi possível carregar as demandas.' });
-  }
-});
 
 requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, res) => {
   if (!req.user) {
@@ -44,21 +27,8 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
     return;
   }
   const body = req.body ?? {};
-  if (typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 255
-      || typeof body.description !== 'string' || !body.description.trim() || body.description.trim().length > 10_000
-      || typeof body.department_id !== 'string' || !body.department_id
-      || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
-      || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
-      || !isAssetFormat(body.format)
-      || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
-      || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
-      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
-      || !validDeliveryContacts(body.briefing)
-      || (requiresCustomAssetSpecs(body.format)
-        && (typeof body.briefing.specs !== 'string' || !body.briefing.specs.trim() || body.briefing.specs.length > 2000))) {
-    res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
-    return;
-  }
+  const errors=validateRequest(body);
+  if(Object.keys(errors).length){res.status(400).json({error:'Confira os campos indicados.',fields:errors});return;}
   try {
     const pool = getPool();
     const client = await pool.connect();
@@ -73,9 +43,9 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
         res.status(400).json({ error: 'Selecione um departamento válido.' });
         return;
       }
-      const count = await client.query<{ code: string }>(
-        `SELECT 'BV-' || EXTRACT(YEAR FROM NOW())::text || '-' ||
-           LPAD(nextval('creative_request_code_seq')::text, 3, '0') AS code`,
+      const sequence = await client.query<{ year: string; number: string }>(
+        `SELECT EXTRACT(YEAR FROM NOW())::text AS year,
+                nextval('creative_request_code_seq')::text AS number`,
       );
       const requestId = randomUUID();
       const now = new Date().toISOString();
@@ -90,7 +60,7 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
         tags: body.tags.slice(0, 30).map((tag: string) => tag.slice(0, 100)),
         briefing: body.briefing,
         id: requestId,
-        code: count.rows[0].code,
+        code: formatRequestCode(sequence.rows[0].year, sequence.rows[0].number),
         requester_id: req.user.id,
         requester_name: req.user.name,
         status: 'backlog',
@@ -116,7 +86,7 @@ requestsRouter.post('/requests', requireUser, async (req: AuthenticatedRequest, 
       client.release();
     }
   } catch (error) {
-    console.error('Erro ao criar demanda:', error);
+    console.error('Erro ao criar demanda:');
     res.status(503).json({ error: 'Não foi possível criar a demanda.' });
   }
 });
@@ -128,22 +98,8 @@ requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequ
     res.status(403).json({ error: 'Somente colaboradores podem editar suas próprias solicitações.' });
     return;
   }
-  if (!validId(id)
-      || typeof body.title !== 'string' || !body.title.trim() || body.title.trim().length > 255
-      || typeof body.description !== 'string' || !body.description.trim() || body.description.trim().length > 10_000
-      || typeof body.department_id !== 'string' || !body.department_id
-      || typeof body.deadline !== 'string' || Number.isNaN(Date.parse(body.deadline))
-      || !['low', 'medium', 'high', 'urgent'].includes(body.priority)
-      || !isAssetFormat(body.format)
-      || !Number.isFinite(body.estimated_hours) || body.estimated_hours < 1 || body.estimated_hours > 1000
-      || !Array.isArray(body.tags) || body.tags.length > 30 || body.tags.some((tag: unknown) => typeof tag !== 'string')
-      || !body.briefing || typeof body.briefing !== 'object' || Array.isArray(body.briefing)
-      || !validDeliveryContacts(body.briefing)
-      || (requiresCustomAssetSpecs(body.format)
-        && (typeof body.briefing.specs !== 'string' || !body.briefing.specs.trim() || body.briefing.specs.length > 2000))) {
-    res.status(400).json({ error: 'Preencha título, descrição, departamento, prioridade, formato, briefing e prazo válidos.' });
-    return;
-  }
+  const errors=validateRequest(body);
+  if(!validId(id) || Object.keys(errors).length){res.status(400).json({error:'Confira os campos indicados.',fields:errors});return;}
   try {
     const pool = getPool();
     const department = await pool.query('SELECT 1 FROM app_departments WHERE id = $1', [body.department_id]);
@@ -165,7 +121,7 @@ requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequ
          'briefing', $11::jsonb,
          'updated_at', NOW()
        )
-       WHERE id = $1 AND requester_id = $2
+       WHERE id = $1 AND requester_id = $2 AND data->>'status'<>'approved' AND data->>'archived_at' IS NULL
        RETURNING data`,
       [
         id,
@@ -187,7 +143,7 @@ requestsRouter.patch('/requests/:id', requireUser, async (req: AuthenticatedRequ
     }
     res.json({ request: result.rows[0].data });
   } catch (error) {
-    console.error('Erro ao editar demanda:', error);
+    console.error('Erro ao editar demanda:');
     res.status(503).json({ error: 'Não foi possível editar a solicitação.' });
   }
 });
@@ -204,7 +160,7 @@ requestsRouter.delete('/requests/:id', requireUser, async (req: AuthenticatedReq
   }
   try {
     const result = await getPool().query(
-      'DELETE FROM creative_requests WHERE id = $1 AND requester_id = $2 RETURNING id',
+      `DELETE FROM creative_requests WHERE id = $1 AND requester_id = $2 AND data->>'status'='backlog' AND data->>'archived_at' IS NULL AND NOT EXISTS(SELECT 1 FROM request_events WHERE request_id=$1) RETURNING id`,
       [id, req.user.id],
     );
     if (!result.rows[0]) {
@@ -213,180 +169,83 @@ requestsRouter.delete('/requests/:id', requireUser, async (req: AuthenticatedReq
     }
     res.status(204).end();
   } catch (error) {
-    console.error('Erro ao excluir demanda:', error);
+    console.error('Erro ao excluir demanda:');
     res.status(503).json({ error: 'Não foi possível excluir a solicitação.' });
   }
 });
 
-requestsRouter.patch('/requests/:id/status', requireUser, requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { status } = req.body ?? {};
-  const allowedStatuses = ['backlog', 'in_progress', 'review', 'client_approval', 'approved'];
-  if (!validId(id) || !allowedStatuses.includes(status)) {
-    res.status(400).json({ error: 'Demanda ou status inválido.' });
-    return;
-  }
-  try {
-    const result = await getPool().query(
-      `UPDATE creative_requests
-       SET data = jsonb_set(data, '{status}', to_jsonb($2::text), true)
-           || jsonb_build_object('updated_at', NOW())
-       WHERE id = $1
-       RETURNING data`,
-      [id, status],
-    );
-    if (!result.rows[0]) {
-      res.status(404).json({ error: 'Demanda não encontrada.' });
-      return;
-    }
-    res.json({ request: result.rows[0].data });
-  } catch (error) {
-    console.error('Erro ao atualizar status:', error);
-    res.status(503).json({ error: 'Não foi possível atualizar o status.' });
-  }
-});
 
-requestsRouter.patch('/requests/:id/assignee', requireUser, requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const assigneeId = req.body?.assigneeId;
-  if (!validId(id) || (assigneeId !== null && (typeof assigneeId !== 'string' || !validId(assigneeId)))) {
-    res.status(400).json({ error: 'Responsável inválido.' });
-    return;
-  }
+type WorkflowAction = 'status' | 'assignee' | 'approver' | 'comments' | 'approvals' | 'reopen' | 'archive';
+async function changeRequest(req: AuthenticatedRequest, res: import('express').Response, action: WorkflowAction) {
+  const {id}=req.params, body=req.body??{};
+  if(!req.user || !validId(id)){res.status(400).json({error:'Demanda inválida.'});return;}
+  let client: import('pg').PoolClient | undefined;
+  let failed=false;
   try {
-    const pool = getPool();
-    let assignee: { id: string; name: string } | null = null;
-    if (assigneeId !== null) {
-      const userResult = await pool.query<{ id: string; name: string }>(
-        'SELECT id, name FROM app_users WHERE id = $1',
-        [assigneeId],
-      );
-      assignee = userResult.rows[0] ?? null;
-      if (!assignee) {
-        res.status(400).json({ error: 'Selecione um usuário válido para executar a solicitação.' });
-        return;
+    client=await getPool().connect();await client.query('BEGIN');
+    const row=(await client.query(`SELECT data FROM creative_requests WHERE ${ACCESS_SQL} AND id=$4 FOR UPDATE`,[...scope(req),id])).rows[0];
+    if(!row){await client.query('ROLLBACK');res.status(404).json({error:'Demanda não encontrada.'});return;}
+    const data=row.data, original={status:data.status,deadline:data.deadline,completed_at:data.completed_at,completion_deadline:data.completion_deadline,approval:data.approvals?.at(-1)};
+    const now=new Date().toISOString();
+    const reject = async (code:number,error:string) => {await client!.query('ROLLBACK');res.status(code).json({error});};
+    if(data.archived_at){await reject(409,'Esta demanda está arquivada.');return;}
+    if(action==='comments'){
+      if(typeof body.content!=='string' || !body.content.trim() || body.content.length>5000){await reject(400,'Use um comentário de 1 a 5000 caracteres.');return;}
+      data.comments=[...(data.comments??[]),{id:randomUUID(),request_id:id,user_id:req.user.id,user_name:req.user.name,user_role:req.user.role,content:body.content.trim(),created_at:now}];
+    } else if(action==='assignee' || action==='approver'){
+      if(!canAccessAdmin(req)){await reject(403,'Somente a administração pode delegar responsabilidades.');return;}
+      const field=action==='assignee'?'assigneeId':'approverId';
+      const personId=body[field];
+      if(personId!==null && (typeof personId!=='string' || !validId(personId))){await reject(400,'Selecione uma conta válida.');return;}
+      const person=personId===null?null:(await client.query('SELECT id,name,role FROM app_users WHERE id=$1 AND active FOR SHARE',[personId])).rows[0];
+      if(personId!==null && (!person || ![action==='assignee'?'designer':'art_director','admin'].includes(person.role))){await reject(400,'Selecione uma pessoa com a responsabilidade correspondente.');return;}
+      data[action+'_id']=person?.id??null;data[action+'_name']=person?.name??null;
+    } else if(action==='status'){
+      if(!mayProduce(req,data)){await reject(403,'Você não tem permissão para movimentar esta demanda.');return;}
+      if(body.status==='approved'){await reject(409,'Para concluir, registre um parecer de aprovação.');return;}
+      if(data.status==='approved'){await reject(409,'Reabra a demanda informando o motivo.');return;}
+      const next: Record<string,string[]>={backlog:['in_progress'],in_progress:['review'],review:['client_approval','in_progress'],client_approval:['in_progress']};
+      if(!next[data.status]?.includes(body.status)){await reject(409,'Transição indisponível nesta etapa.');return;}
+      data.status=body.status;
+    } else if(action==='approvals'){
+      if(!mayReview(req,data)){await reject(403,'Você não tem permissão para aprovar esta demanda.');return;}
+      if(!['review','client_approval'].includes(data.status)){await reject(409,'Esta demanda saiu da fila de aprovação. Atualize a fila para continuar.');return;}
+      if(!['approved','approved_with_notes','changes_requested'].includes(body.decision) ||
+         typeof body.feedback!=='string' || body.feedback.length>5000 ||
+         !Array.isArray(body.checklist) || body.checklist.length>50 ||
+         body.checklist.some((item:any)=>!item || typeof item.item!=='string' || item.item.length>500 || typeof item.checked!=='boolean') ||
+         (body.delivery_reference!==undefined && (typeof body.delivery_reference!=='string' || body.delivery_reference.length>2000))){
+        await reject(400,'Confira o parecer e o checklist.');return;
       }
+      if(body.decision!=='changes_requested' && !REQUIRED_CHECKLIST.every(item=>body.checklist.some((entry:any)=>entry.item===item && entry.checked))){
+        await reject(400,'Confirme todos os itens obrigatórios para aprovar.');return;
+      }
+      const approval={id:randomUUID(),request_id:id,reviewer_id:req.user.id,reviewer_name:req.user.name,reviewer_role:req.user.role,decision:body.decision,feedback:body.feedback,checklist:body.checklist,delivery_reference:body.delivery_reference??'',version_number:data.current_version??0,created_at:now};
+      data.approvals=[...(data.approvals??[]),approval];
+      data.status=body.decision==='changes_requested'?'in_progress':'approved';
+      if(data.status==='approved'){data.completed_at=now;data.completion_deadline=data.deadline;}
+    } else {
+      if(!canAccessAdmin(req) && !(action==='reopen' && mayReview(req,data))){await reject(403,'Você não tem permissão para esta ação.');return;}
+      if(typeof body.reason!=='string' || !body.reason.trim() || body.reason.length>2000){await reject(400,'Informe o motivo de até 2000 caracteres.');return;}
+      if(action==='reopen'){
+        if(data.status!=='approved'){await reject(409,'Somente demandas concluídas podem ser reabertas.');return;}
+        data.status='in_progress';data.completed_at=null;data.completion_deadline=null;
+      } else data.archived_at=now;
     }
-
-    const result = await pool.query(
-      `UPDATE creative_requests
-       SET data = data || jsonb_build_object(
-         'assignee_id', $2::text,
-         'assignee_name', $3::text,
-         'updated_at', NOW()
-       )
-       WHERE id = $1
-       RETURNING data`,
-      [id, assignee?.id ?? null, assignee?.name ?? null],
-    );
-    if (!result.rows[0]) {
-      res.status(404).json({ error: 'Solicitação não encontrada.' });
-      return;
+    data.updated_at=now;
+    await client.query('UPDATE creative_requests SET data=$2 WHERE id=$1',[id,data]);
+    if (action !== 'comments') {
+      const snapshot = { ...original, after: { status: data.status, assignee_name: data.assignee_name, approver_name: data.approver_name } };
+      const reason = action === 'reopen' || action === 'archive' ? body.reason.trim() : '';
+      await client.query(
+        'INSERT INTO request_events(request_id,actor_id,action,reason,snapshot) VALUES($1,$2,$3,$4,$5)',
+        [id, req.user.id, action, reason, snapshot],
+      );
     }
-    res.json({ request: result.rows[0].data });
-  } catch (error) {
-    console.error('Erro ao atribuir responsável pela execução:', error);
-    res.status(503).json({ error: 'Não foi possível atualizar o responsável pela execução.' });
-  }
-});
-
-requestsRouter.post('/requests/:id/comments', requireUser, async (req: AuthenticatedRequest, res) => {
-  const { id } = req.params;
-  const content = req.body?.content;
-  if (!req.user || !validId(id) || typeof content !== 'string' || !content.trim() || content.length > 5000) {
-    res.status(400).json({ error: 'Comentário inválido.' });
-    return;
-  }
-  try {
-    const result = await getPool().query(
-      `UPDATE creative_requests
-       SET data = jsonb_set(
-         data,
-         '{comments}',
-         COALESCE(data->'comments', '[]'::jsonb) || $2::jsonb,
-         true
-       ) || jsonb_build_object('updated_at', NOW())
-       WHERE id = $1 AND ($3::text = 'admin' OR requester_id = $4)
-       RETURNING data`,
-      [id, JSON.stringify([{
-        id: randomBytes(12).toString('hex'),
-        request_id: id,
-        user_id: req.user.id,
-        user_name: req.user.name,
-        user_avatar: '',
-        user_role: req.user.role,
-        content: content.trim(),
-        is_adjustment: req.user.role === 'requester',
-        resolved: false,
-        created_at: new Date().toISOString(),
-      }]), req.user.role, req.user.id],
-    );
-    if (!result.rows[0]) {
-      res.status(404).json({ error: 'Demanda não encontrada ou sem permissão.' });
-      return;
-    }
-    res.json({ request: result.rows[0].data });
-  } catch (error) {
-    console.error('Erro ao registrar comentário:', error);
-    res.status(503).json({ error: 'Não foi possível registrar o comentário.' });
-  }
-});
-
-requestsRouter.post('/requests/:id/approvals', requireUser, requireAdmin, async (req, res) => {
-  const { id } = req.params;
-  const { decision, feedback, checklist } = req.body ?? {};
-  if (!validId(id) || !['approved', 'approved_with_notes', 'changes_requested'].includes(decision)
-      || typeof feedback !== 'string' || feedback.length > 5000
-      || !Array.isArray(checklist) || checklist.length > 50
-      || checklist.some((item: unknown) => !item || typeof item !== 'object'
-        || typeof (item as { item?: unknown }).item !== 'string'
-        || (item as { item: string }).item.length > 500
-        || typeof (item as { checked?: unknown }).checked !== 'boolean')) {
-    res.status(400).json({ error: 'Parecer de aprovação inválido.' });
-    return;
-  }
-  const status = decision === 'changes_requested' ? 'in_progress' : 'approved';
-  try {
-    const result = await getPool().query(
-      `UPDATE creative_requests
-       SET data = data || jsonb_build_object(
-         'approvals',
-         (CASE
-           WHEN jsonb_typeof(data->'approvals') = 'array' THEN data->'approvals'
-           ELSE '[]'::jsonb
-         END) || jsonb_build_array(
-           jsonb_build_object(
-             'id', $2::text,
-             'request_id', $1::text,
-             'version_number', CASE
-               WHEN COALESCE(data->>'current_version', '') ~ '^[0-9]+$'
-                 THEN (data->>'current_version')::int
-               ELSE 0
-             END,
-             'reviewer_id', $3::text,
-             'reviewer_name', $4::text,
-             'reviewer_role', 'admin',
-             'decision', $5::text,
-             'feedback', $6::text,
-             'checklist', $7::jsonb,
-             'created_at', NOW()
-           )
-         ),
-         'status', $8::text,
-         'updated_at', NOW()
-       )
-       WHERE id = $1
-       RETURNING data`,
-      [id, randomBytes(12).toString('hex'), (req as AuthenticatedRequest).user?.id,
-        (req as AuthenticatedRequest).user?.name, decision, feedback, JSON.stringify(checklist), status],
-    );
-    if (!result.rows[0]) {
-      res.status(404).json({ error: 'Demanda não encontrada.' });
-      return;
-    }
-    res.json({ request: result.rows[0].data });
-  } catch (error) {
-    console.error('Erro ao salvar parecer:', error);
-    res.status(503).json({ error: 'Não foi possível salvar o parecer.' });
-  }
-});
+    const history = await getRequestHistory(id, client);
+    await client.query('COMMIT');res.json({request:{ ...data, history }});
+  }catch{failed=true;res.status(503).json({error:'Não foi possível salvar a alteração. Tente novamente.'});}
+  finally{client?.release(failed);}
+}
+for(const action of ['status','assignee','approver'] as const) requestsRouter.patch('/requests/:id/'+action,requireUser,(req,res)=>{void changeRequest(req,res,action);});
+for(const action of ['comments','approvals','reopen','archive'] as const) requestsRouter.post('/requests/:id/'+action,requireUser,(req,res)=>{void changeRequest(req,res,action);});

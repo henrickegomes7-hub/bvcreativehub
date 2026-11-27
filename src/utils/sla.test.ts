@@ -1,11 +1,20 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { getSlaStatus, calculateTurnaroundHours } from './sla';
+import { getRequestSla, getSlaStatus, calculateTurnaroundHours } from './sla';
+import type { CreativeRequest } from '../types';
 
-test('SLA calculates delivered status correctly', () => {
-  const info = getSlaStatus('2026-11-06T12:00:00Z', true);
-  assert.equal(info.status, 'delivered');
-  assert.equal(info.isOverdue, false);
+test('delivery SLA uses the recorded deadline and treats undated legacy deliveries as unknown', () => {
+  const request = {
+    status: 'approved', deadline: '2026-11-01T12:00:00Z', completion_deadline: '2026-11-06T12:00:00Z',
+    updated_at: '2026-11-10T12:00:00Z',
+  } as CreativeRequest;
+  assert.equal(getRequestSla(request).status, 'unknown');
+  const onTime = getRequestSla({ ...request, completed_at: request.completion_deadline });
+  assert.equal(onTime.status, 'delivered');
+  assert.equal(onTime.isOverdue, false);
+  const late = getRequestSla({ ...request, completed_at: '2026-11-06T12:00:01Z' });
+  assert.equal(late.isOverdue, true);
+  assert.equal(late.label, 'Entregue com atraso');
 });
 
 test('SLA identifies overdue deadlines', () => {

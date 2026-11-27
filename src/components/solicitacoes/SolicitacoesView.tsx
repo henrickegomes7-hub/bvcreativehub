@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { CreativeRequest, Department, RequestPriority, RequestStatus, AssetFormat } from '../../types';
 import { normalizeAssetFormat } from '../../constants/assetFormats';
-import { getSlaStatus } from '../../utils/sla';
+import { getRequestSla } from '../../utils/sla';
 import { STATUS_LABELS, STATUS_COLORS, PRIORITY_LABELS, PRIORITY_COLORS } from '../../utils/workflow';
 import { Badge } from '../ui/Badge';
 import { Button } from '../ui/Button';
@@ -17,11 +17,15 @@ import {
 } from 'lucide-react';
 
 interface SolicitacoesViewProps {
+  filters: Record<string,string>;
+  onFiltersChange: (filters: Record<string,string>)=>void;
   requests: CreativeRequest[];
+  total: number;
   departments: Department[];
   currentUserId: string;
   isAdmin: boolean;
-  onSelectRequest: (id: string) => void;
+  canCreate: boolean;
+  onSelectRequest: (id: string, showApproval?: boolean) => void;
   onEditRequest: (id: string) => void;
   onDeleteRequest: (id: string) => void;
   onOpenNewRequest: () => void;
@@ -29,11 +33,32 @@ interface SolicitacoesViewProps {
   onSearchChange: (q: string) => void;
 }
 
+const filterLabelClass = 'grid min-w-0 gap-1.5 text-sm font-medium text-slate-700 dark:text-slate-200';
+const filterFieldClass = 'hub-field block h-11 w-full min-w-0 rounded-lg border border-slate-300 bg-white px-3 text-sm text-slate-900 focus-visible:outline-2 focus-visible:outline-blue-500 dark:border-[#1F3057] dark:bg-[#131F3D] dark:text-slate-100';
+
+const nextStepByStatus: Record<RequestStatus, string> = {
+  backlog: 'Aguardando triagem da equipe criativa',
+  in_progress: 'A equipe criativa está produzindo a peça',
+  review: 'A peça está em revisão criativa',
+  client_approval: 'Aguardando parecer de aprovação',
+  approved: 'Aprovada e concluída',
+};
+
+function requestProgress(request: CreativeRequest) {
+  if (request.archived_at) return 'Solicitação arquivada';
+  if (request.adjustments_requested) return 'Ajustes solicitados · Ver parecer';
+  return nextStepByStatus[request.status];
+}
+
 export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
+  filters,
+  onFiltersChange,
   requests,
+  total,
   departments,
   currentUserId,
   isAdmin,
+  canCreate,
   onSelectRequest,
   onEditRequest,
   onDeleteRequest,
@@ -41,126 +66,94 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
   searchQuery,
   onSearchChange,
 }) => {
-  const [selectedDept, setSelectedDept] = useState<string>('all');
-  const [selectedStatus, setSelectedStatus] = useState<string>('all');
-  const [selectedPriority, setSelectedPriority] = useState<string>('all');
-
-  const filteredRequests = requests.filter((req) => {
-    // Search match
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      const matchCode = req.code.toLowerCase().includes(q);
-      const matchTitle = req.title.toLowerCase().includes(q);
-      const matchDesc = req.description.toLowerCase().includes(q);
-      const matchTags = req.tags.some(t => t.toLowerCase().includes(q));
-      if (!matchCode && !matchTitle && !matchDesc && !matchTags) return false;
-    }
-
-    // Department match
-    if (selectedDept !== 'all' && req.department_id !== selectedDept) {
-      return false;
-    }
-
-    // Status match
-    if (selectedStatus !== 'all' && req.status !== selectedStatus) {
-      return false;
-    }
-
-    // Priority match
-    if (selectedPriority !== 'all' && req.priority !== selectedPriority) {
-      return false;
-    }
-
-    return true;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterCount = Object.entries(filters).filter(([key, value]) => value && value !== 'all' && (key !== 'archived' || value === 'true')).length;
+  const dateValue = (key: 'from' | 'to') => filters[key] ? new Date(filters[key]).toLocaleDateString('sv-SE') : '';
+  const setDate = (key: 'from' | 'to', value: string) => onFiltersChange({
+    ...filters, [key]: value ? new Date(value + (key === 'from' ? 'T00:00:00' : 'T23:59:59.999')).toISOString() : '',
   });
-
+  const selectedDept = filters.department_id ?? 'all';
+  const selectedStatus = filters.status ?? 'all';
+  const selectedPriority = filters.priority ?? 'all';
+  const filteredRequests = requests;
   const getFormatLabel = (fmt: AssetFormat) => {
     return normalizeAssetFormat(fmt);
   };
 
   const canManageRequest = (request: CreativeRequest) =>
-    !isAdmin && request.requester_id === currentUserId;
+    !isAdmin && request.requester_id === currentUserId && request.status !== 'approved' && !request.archived_at;
+  const openRequest = (request: CreativeRequest) =>
+    onSelectRequest(request.id, Boolean(request.adjustments_requested && !request.archived_at));
 
   return (
     <div className="space-y-4">
-      {/* Filters Bar */}
-      <div className="bg-white dark:bg-[#0E172E] rounded-xl p-4 border border-slate-300/80 dark:border-[#1F3057] shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-3">
-        <div className="flex flex-wrap items-center gap-2.5">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-slate-500 dark:text-slate-400 mr-1">
-            <Filter className="w-3.5 h-3.5" />
-            Filtros:
+      <section aria-label="Filtros e ações de solicitações" className="hub-panel space-y-4 rounded-xl border border-slate-300/80 bg-white p-4 shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex flex-wrap items-center gap-3">
+            <Button type="button" variant="outline" className="min-h-11 md:hidden"
+              icon={<Filter aria-hidden="true" className="size-4" />} aria-expanded={filtersOpen}
+              aria-controls="request-filters" onClick={() => setFiltersOpen(open => !open)}>
+              Filtros{filterCount > 0 && ` (${filterCount})`}
+            </Button>
+            <span className="whitespace-nowrap text-sm text-slate-600 dark:text-slate-300" role="status">
+              Mostrando <strong>{filteredRequests.length}</strong> de {total}
+            </span>
           </div>
-
-          {/* Department Filter */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
-          >
-            <option value="all">Todos Departamentos ({departments.length})</option>
-            {departments.map((d) => (
-              <option key={d.id} value={d.id}>
-                {d.name}
-              </option>
-            ))}
-          </select>
-
-          {/* Status Filter */}
-          <select
-            value={selectedStatus}
-            onChange={(e) => setSelectedStatus(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
-          >
-            <option value="all">Todos os Status</option>
-            <option value="backlog">Triagem / Backlog</option>
-            <option value="in_progress">Em Produção</option>
-            <option value="review">Revisão Criativa / QA</option>
-            <option value="client_approval">Aprovação do Solicitante</option>
-            <option value="approved">Concluído & Aprovado</option>
-          </select>
-
-          {/* Priority Filter */}
-          <select
-            value={selectedPriority}
-            onChange={(e) => setSelectedPriority(e.target.value)}
-            className="text-xs px-3 py-1.5 bg-slate-50 dark:bg-[#131F3D] border border-slate-200 dark:border-[#1F3057] rounded-lg text-slate-700 dark:text-slate-200 focus:outline-none focus:ring-2 focus:ring-[#083181]/30 focus:border-[#083181]"
-          >
-            <option value="all">Todas as Prioridades</option>
-            <option value="urgent">Urgente / Crítica</option>
-            <option value="high">Alta</option>
-            <option value="medium">Média</option>
-            <option value="low">Baixa</option>
-          </select>
-
-          {(selectedDept !== 'all' || selectedStatus !== 'all' || selectedPriority !== 'all' || searchQuery) && (
-            <button
-              onClick={() => {
-                setSelectedDept('all');
-                setSelectedStatus('all');
-                setSelectedPriority('all');
-                onSearchChange('');
-              }}
-              className="text-xs text-[#083181] dark:text-blue-300 hover:underline font-semibold ml-1"
-            >
-              Limpar filtros
-            </button>
-          )}
-        </div>
-
-        <div className="flex items-center justify-between gap-2 sm:justify-end">
-          <span className="text-[11px] text-slate-500 dark:text-slate-400 sm:text-xs">
-            Mostrando <strong>{filteredRequests.length}</strong> de {requests.length}
-          </span>
-          {!isAdmin && (
-            <Button variant="primary" size="sm" onClick={onOpenNewRequest}>
-              Nova
+          {canCreate && (
+            <Button type="button" variant="primary" className="min-h-11 shrink-0 whitespace-nowrap" onClick={onOpenNewRequest}>
+              Nova solicitação
             </Button>
           )}
         </div>
-      </div>
+
+        <div id="request-filters" className={`${filtersOpen ? 'grid' : 'hidden'} grid-cols-1 gap-3 border-t border-slate-200 pt-4 dark:border-slate-700 sm:grid-cols-2 md:grid md:grid-cols-3 xl:grid-cols-5`}>
+          <label className={filterLabelClass}>
+            Departamento
+            <select aria-label="Departamento" value={selectedDept} onChange={e => onFiltersChange({...filters, department_id: e.target.value})} className={filterFieldClass}>
+              <option value="all">Todos os departamentos</option>
+              {departments.map(department => <option key={department.id} value={department.id}>{department.name}</option>)}
+            </select>
+          </label>
+          <label className={filterLabelClass}>
+            Status
+            <select aria-label="Status" value={selectedStatus} onChange={e => onFiltersChange({...filters, status: e.target.value})} className={filterFieldClass}>
+              <option value="all">Todos os status</option>
+              {Object.entries(STATUS_LABELS).map(([status, label]) => <option key={status} value={status}>{label}</option>)}
+            </select>
+          </label>
+          <label className={filterLabelClass}>
+            Prioridade
+            <select aria-label="Prioridade" value={selectedPriority} onChange={e => onFiltersChange({...filters, priority: e.target.value})} className={filterFieldClass}>
+              <option value="all">Todas as prioridades</option>
+              {Object.entries(PRIORITY_LABELS).map(([priority, label]) => <option key={priority} value={priority}>{label}</option>)}
+            </select>
+          </label>
+          <label className={filterLabelClass}>
+            Desde
+            <input type="date" value={dateValue('from')} onChange={e => setDate('from', e.target.value)} className={`m-0! ${filterFieldClass}`} />
+          </label>
+          <label className={filterLabelClass}>
+            Até
+            <input type="date" value={dateValue('to')} onChange={e => setDate('to', e.target.value)} className={`m-0! ${filterFieldClass}`} />
+          </label>
+          <div className="col-span-full flex flex-wrap items-center justify-between gap-2">
+            <label className="inline-flex min-h-9 items-center gap-2 text-sm text-slate-700 dark:text-slate-200">
+              <input type="checkbox" checked={filters.archived === 'true'}
+                onChange={e => onFiltersChange({...filters, archived: e.target.checked ? 'true' : ''})} />
+              Incluir arquivadas
+            </label>
+            {(filterCount > 0 || searchQuery) && (
+              <Button type="button" variant="ghost" size="sm" className="min-h-9" onClick={() => {
+                onFiltersChange({});
+                onSearchChange('');
+              }}>Limpar tudo</Button>
+            )}
+          </div>
+        </div>
+      </section>
 
       {/* Table Container */}
-      <div className="hidden overflow-hidden rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E] md:block">
+      <div className="hidden overflow-hidden hub-panel rounded-xl border border-slate-300/80 bg-white shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E] md:block">
         <div className="overflow-x-auto">
           <table className="w-full min-w-[1280px] table-fixed border-collapse text-left">
             <colgroup>
@@ -198,14 +191,14 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                 </tr>
               ) : (
                 filteredRequests.map((req) => {
-                  const sla = getSlaStatus(req.deadline, req.status === 'approved');
+                  const sla = getRequestSla(req);
                   const dept = departments.find(d => d.id === req.department_id);
                   const pColors = PRIORITY_COLORS[req.priority];
 
                   return (
                     <tr
                       key={req.id}
-                      onClick={() => onSelectRequest(req.id)}
+                      onClick={() => openRequest(req)}
                       className="hover:bg-blue-50/60 dark:hover:bg-slate-800/60 transition-colors cursor-pointer group"
                     >
                       <td className="py-3.5 px-4 font-mono font-bold text-slate-900 dark:text-white whitespace-nowrap">
@@ -217,7 +210,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                           {req.title}
                         </p>
                         <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate mt-0.5">
-                          {req.description}
+                          {requestProgress(req)}
                         </p>
                         <div className="flex gap-1 mt-1">
                           {req.tags.slice(0, 2).map((t, i) => (
@@ -266,7 +259,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
 
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <Badge 
-                          variant={sla.status === 'overdue' ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'} 
+                          variant={sla.isOverdue ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'}
                           size="sm" 
                           dot
                         >
@@ -277,7 +270,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                       <td className="py-3.5 px-4 whitespace-nowrap">
                         <span 
                           className="inline-block text-[11px] font-semibold px-2.5 py-0.5 rounded-full text-white"
-                          style={{ backgroundColor: STATUS_COLORS[req.status] }}
+                          style={{ backgroundColor: STATUS_COLORS[req.status], color:req.status==='approved'?'#14213D':undefined }}
                         >
                           {STATUS_LABELS[req.status]}
                         </span>
@@ -291,7 +284,7 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
                             icon={<Eye className="w-3.5 h-3.5" />}
                             onClick={(e) => {
                               e.stopPropagation();
-                              onSelectRequest(req.id);
+                              openRequest(req);
                             }}
                           >
                             Ver
@@ -333,69 +326,49 @@ export const SolicitacoesView: React.FC<SolicitacoesViewProps> = ({
 
       <div className="space-y-3 md:hidden">
         {filteredRequests.length === 0 ? (
-          <div className="rounded-xl border border-slate-300/80 bg-white p-8 text-center text-slate-400 shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
+          <div className="hub-panel rounded-xl border border-slate-300/80 bg-white p-8 text-center text-slate-400 shadow-sm dark:border-[#1F3057] dark:bg-[#0E172E]">
             <Layers className="mx-auto mb-2 h-8 w-8 opacity-50" />
             <p className="font-semibold text-slate-700 dark:text-slate-300">Nenhuma demanda encontrada.</p>
             <p className="mt-1 text-xs">Ajuste os filtros ou cadastre uma nova solicitação.</p>
           </div>
         ) : filteredRequests.map((req) => {
-          const sla = getSlaStatus(req.deadline, req.status === 'approved');
+          const sla = getRequestSla(req);
           const dept = departments.find((d) => d.id === req.department_id);
-          const pColors = PRIORITY_COLORS[req.priority];
 
           return (
             <div
               key={req.id}
-              className="w-full rounded-xl border border-slate-300/80 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#083181]/40 dark:border-[#1F3057] dark:bg-[#0E172E]"
+              className="w-full hub-panel rounded-xl border border-slate-300/80 bg-white p-4 text-left shadow-sm transition-colors hover:border-[#083181]/40 dark:border-[#1F3057] dark:bg-[#0E172E]"
             >
               <button
                 type="button"
-                onClick={() => onSelectRequest(req.id)}
+                onClick={() => openRequest(req)}
                 className="w-full text-left"
               >
-                <div className="flex items-start justify-between gap-3">
-                  <div className="min-w-0">
-                    <p className="font-mono text-[11px] font-bold text-slate-500 dark:text-slate-400">{req.code}</p>
-                    <h3 className="mt-1 break-words text-sm font-bold text-slate-900 dark:text-white">{req.title}</h3>
-                  </div>
-                  <span
-                    className="shrink-0 rounded-full px-2.5 py-1 text-[10px] font-semibold text-white"
-                    style={{ backgroundColor: STATUS_COLORS[req.status] }}
-                  >
+                <h3 className="break-words text-base font-bold text-slate-900 dark:text-white">{req.title}</h3>
+                <div className="mt-2 flex flex-wrap items-center gap-2">
+                  <span className="rounded-full px-2.5 py-1 text-xs font-semibold text-white"
+                    style={{ backgroundColor: STATUS_COLORS[req.status], color: req.status === 'approved' ? '#14213D' : undefined }}>
                     {STATUS_LABELS[req.status]}
                   </span>
-                </div>
-                <p className="mt-1 line-clamp-2 text-xs text-slate-500 dark:text-slate-400">{req.description}</p>
-                <div className="mt-3 flex flex-wrap items-center gap-2">
-                  <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-slate-700 dark:text-slate-300">
-                    <span className="h-2 w-2 rounded-full" style={{ backgroundColor: dept?.color || '#083181' }} />
-                    {dept?.name || 'Geral'}
-                  </span>
-                  <span
-                    className="rounded border px-2 py-0.5 text-[10px] font-semibold"
-                    style={{ backgroundColor: pColors.bg, color: pColors.text, borderColor: pColors.border }}
-                  >
-                    {PRIORITY_LABELS[req.priority]}
-                  </span>
-                  <Badge
-                    variant={sla.status === 'overdue' ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'}
-                    size="sm"
-                    dot
-                  >
+                  {req.status !== 'approved' && <Badge variant={sla.isOverdue ? 'danger' : sla.status === 'critical' ? 'warning' : 'neutral'} size="sm" dot>
                     {sla.label}
-                  </Badge>
+                  </Badge>}
                 </div>
-                <div className="mt-3 flex items-center justify-between border-t border-slate-100 pt-3 text-[11px] text-slate-500 dark:border-slate-800 dark:text-slate-400">
-                  <span className="truncate">{req.assignee_name || 'Aguardando responsável'}</span>
-                  <span className="ml-3 shrink-0">{getFormatLabel(req.format)}</span>
-                </div>
+                <p className="mt-2 text-sm text-slate-600 dark:text-slate-300">{requestProgress(req)}</p>
+                {req.deadline && <p className="mt-2 text-sm font-medium text-slate-700 dark:text-slate-200">
+                  Prazo: {new Date(req.deadline).toLocaleString('pt-BR', {dateStyle: 'short', timeStyle: 'short'})}
+                </p>}
+                <p className="mt-3 break-words border-t border-slate-100 pt-2 text-xs text-slate-500 dark:border-slate-800 dark:text-slate-400">
+                  {req.code} · {dept?.name || 'Geral'} · {req.assignee_name || 'Aguardando responsável'}
+                </p>
               </button>
               {canManageRequest(req) && (
                 <div className="mt-3 flex justify-end gap-2 border-t border-slate-100 pt-3 dark:border-slate-800">
-                  <Button variant="outline" size="sm" onClick={() => onEditRequest(req.id)}>
+                  <Button variant="outline" size="sm" className="min-h-11" onClick={() => onEditRequest(req.id)}>
                     Editar
                   </Button>
-                  <Button variant="outline" size="sm" onClick={() => onDeleteRequest(req.id)}>
+                  <Button variant="outline" size="sm" className="min-h-11" onClick={() => onDeleteRequest(req.id)}>
                     Excluir
                   </Button>
                 </div>
