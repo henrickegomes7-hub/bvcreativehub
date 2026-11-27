@@ -4,6 +4,10 @@ Aplicação do Grupo BV para solicitar materiais criativos e acompanhar briefing
 
 **Produção** · [Abrir o BV Creative Hub](https://bvcreativehub1.vercel.app/) · [Verificar disponibilidade da API](https://bvcreativehub1.vercel.app/api/health)
 
+![Dashboard administrativo do BV Creative Hub com cartões de prioridades e gráfico de demandas](./public/assets/dashboard-demonstracao.webp)
+
+*Dashboard em ambiente de demonstração com dados fictícios.*
+
 ## Funcionalidades
 
 - **Acesso e perfil** — cadastro de colaborador com e-mail e confirmação de senha, login, recuperação por código enviado por e-mail e foto de perfil por upload.
@@ -41,6 +45,8 @@ React 19, TypeScript, Vite, Tailwind CSS, Express e PostgreSQL. A Vercel serve o
 Use **Node.js 22.12+**, **Bun 1.4.5** e um **PostgreSQL** separado de produção. Na primeira instalação, rode no PowerShell:
 
 ```powershell
+git clone https://github.com/henrickegomes7-hub/bvcreativehub.git
+cd bvcreativehub
 Copy-Item .env.example .env
 bun install --frozen-lockfile
 ```
@@ -68,6 +74,7 @@ bun run package:source
 
 - A aplicação está publicada com HTTPS e HSTS no endereço oficial da Vercel.
 - A configuração de produção inclui cabeçalhos de segurança, página 404, sitemap e robots.txt.
+- O endpoint `/api/health` confirma que a API responde. Verifique a conexão com o PostgreSQL, o login e a entrega de e-mails separadamente.
 - A Vercel registra requisições e execuções da API. Alertas e checagens periódicas de disponibilidade devem ser conferidos no ambiente de operação.
 - Domínio próprio, Google Analytics e Search Console dependem da configuração das propriedades e da verificação do domínio.
 
